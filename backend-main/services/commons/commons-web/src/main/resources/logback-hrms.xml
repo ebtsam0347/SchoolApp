@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Phase 5: this fragment is now a no-op. Structured logging is handled by
+  Spring Boot 4's `logging.structured.format.console` property (set to
+  `logstash` in the cluster overlays' env vars; empty in local dev so the
+  default human-readable pattern is used). No appender, no encoder
+  override.
+
+  The file is kept (rather than deleted) so any existing
+  `<include resource="logback-hrms.xml"/>` reference in a future service's
+  custom logback-spring.xml stays valid. New services should NOT add a
+  logback-spring.xml unless they have a real reason; rely on the platform
+  defaults.
+-->
+<included/>

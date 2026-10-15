@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Generic employee letter — service or experience. Body text is supplied
+  whole as a parameter; letterTitle switches between "Service Letter" and
+  "Experience Letter".
+
+  Letterhead, signatory and footer come from
+  LetterSettingsService.letterheadParams and match
+  appointment-letter.jrxml, so every HR letter prints as one family.
+  Inline SansSerif fonts; never size 13.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="employee-letter" pageWidth="595" pageHeight="842"
+              columnWidth="495" leftMargin="50" rightMargin="50" topMargin="30" bottomMargin="30"
+              uuid="9c5c3d36-1234-4abc-8000-000000000031">
+
+    <!-- Letterhead / footer (LetterSettingsService) -->
+    <parameter name="companyName"          class="java.lang.String"/>
+    <parameter name="companyAddress"       class="java.lang.String"/>
+    <parameter name="companyContact"       class="java.lang.String"/>
+    <parameter name="companyLogo"          class="java.io.InputStream"/>
+    <parameter name="signatoryName"        class="java.lang.String"/>
+    <parameter name="signatoryDesignation" class="java.lang.String"/>
+    <parameter name="generatedAt"          class="java.lang.String"/>
+    <parameter name="generatedBy"          class="java.lang.String"/>
+
+    <!-- Letter -->
+    <parameter name="letterTitle"   class="java.lang.String"/>
+    <parameter name="letterDate"    class="java.lang.String"/>
+    <parameter name="employeeName"  class="java.lang.String"/>
+    <parameter name="employeeCode"  class="java.lang.String"/>
+    <parameter name="designation"   class="java.lang.String"/>
+    <parameter name="department"    class="java.lang.String"/>
+    <parameter name="body"          class="java.lang.String"/>
+
+    <title>
+        <band height="112" splitType="Stretch">
+            <image scaleImage="RetainShape" hAlign="Left" vAlign="Middle" onErrorType="Blank">
+                <reportElement x="0" y="0" width="70" height="46">
+                    <printWhenExpression><![CDATA[$P{companyLogo} != null]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{companyLogo}]]></imageExpression>
+            </image>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="495" height="20" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="14" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="21" width="495" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="33" width="495" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyContact}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="50" width="495" height="1" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="300" y="60" width="195" height="14" forecolor="#1A1714"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA["Date: " + $P{letterDate}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="84" width="495" height="18" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="12" isBold="true" pdfFontName="Helvetica-Bold" isUnderline="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{letterTitle} == null ? null : $P{letterTitle}.toUpperCase()]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <detail>
+        <band height="20" splitType="Stretch">
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="495" height="14" forecolor="#1A1714"/>
+                <textElement textAlignment="Justified"><font fontName="SansSerif" size="10"/><paragraph lineSpacing="1_1_2"/></textElement>
+                <textFieldExpression><![CDATA[$P{body}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="26">
+            <line>
+                <reportElement x="0" y="0" width="495" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="5" width="400" height="10" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["System-generated by FS-HRMS on " + $P{generatedAt} + " by " + $P{generatedBy}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="400" y="5" width="60" height="10" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="460" y="5" width="35" height="10" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="15" width="495" height="10" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{employeeCode}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="100" splitType="Prevent">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="10" width="260" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="10"/></textElement>
+                <textFieldExpression><![CDATA["For " + $P{companyName}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="70" width="190" height="1" forecolor="#1A1714"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="74" width="260" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{signatoryName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="88" width="260" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{signatoryDesignation}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

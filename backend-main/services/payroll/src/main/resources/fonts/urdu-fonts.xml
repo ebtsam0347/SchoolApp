@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Jasper font extension for the Urdu salary slip (accounts report A1, F18 =
+  Urdu). Noto Nastaliq Urdu, SIL OFL 1.1 (see NotoNastaliqUrdu-OFL.txt),
+  embedded as Identity-H so the PDF opens anywhere without the font
+  installed. The same file serves bold — the family has one weight.
+-->
+<fontFamilies>
+    <fontFamily name="Noto Nastaliq Urdu">
+        <normal><![CDATA[fonts/NotoNastaliqUrdu-Regular.ttf]]></normal>
+        <bold><![CDATA[fonts/NotoNastaliqUrdu-Regular.ttf]]></bold>
+        <pdfEncoding><![CDATA[Identity-H]]></pdfEncoding>
+        <pdfEmbedded><![CDATA[true]]></pdfEmbedded>
+    </fontFamily>
+</fontFamilies>

@@ -1,0 +1,136 @@
+/* Brief highlight for freshly-arrived rows in the live punch feed. Applied by
+   LiveAttendanceFeed via the AntD `rowClassName` hook. The animation fades a
+   tinted background back to transparent so a new punch draws the eye without a
+   persistent colour that would clutter the table. Honors reduced-motion. */
+
+@keyframes fs-attn-row-flash {
+  from {
+    background-color: color-mix(in srgb, var(--fs-attn-flash, #16a34a) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.ant-table-row.fs-attn-row-new > td {
+  animation: fs-attn-row-flash 2.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ant-table-row.fs-attn-row-new > td {
+    animation: none;
+  }
+}
+
+/* Live counter: brief green flash + gentle pop when the number ticks up.
+   Re-keyed on every increase so the animation restarts each time. */
+@keyframes fs-count-up {
+  0% {
+    color: #16a34a;
+    transform: translateY(-2px) scale(1.06);
+  }
+  100% {
+    color: inherit;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fs-count-up {
+  animation: fs-count-up 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-count-up {
+    animation: none;
+  }
+}
+
+/* ---- Split-flap "clock board" counter (FlipNumber) ------------------------ */
+/* A live tally where each digit rolls vertically inside its own dark tile as the
+   count changes — the clock-styled counter on the monitoring view. The reel
+   stacks 0–9; translating it by -digit*10% brings the target digit into the
+   1-tile-tall window. */
+
+.fs-flip {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.fs-flip-tile {
+  position: relative;
+  display: inline-block;
+  width: 0.72em;
+  height: 1.28em;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2a2f3a 0%, #171a21 52%, #12141a 100%);
+  color: #f6f8fb;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Center seam, like a flip clock's split between the two halves of a digit. */
+.fs-flip-tile::after {
+  content: '';
+  position: absolute;
+  inset: calc(50% - 1px) 0 auto 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+
+.fs-flip-reel {
+  display: flex;
+  flex-direction: column;
+  transition: transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+
+.fs-flip-reel-static {
+  transition: none;
+}
+
+.fs-flip-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.28em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-flip-reel {
+    transition: none;
+  }
+}
+
+/* Pulsing "LIVE" status dot. Steady when idle; expands a ring while fetching. */
+@keyframes fs-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #16a34a 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, #16a34a 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #16a34a 0%, transparent);
+  }
+}
+
+.fs-live-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 22%, transparent);
+}
+
+.fs-live-dot-active {
+  animation: fs-live-pulse 1.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-live-dot-active {
+    animation: none;
+  }
+}

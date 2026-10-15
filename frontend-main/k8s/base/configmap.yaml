@@ -1,0 +1,8 @@
+# Default upstream points at the uat gateway. Overlays patch this for prod.
+# The image's nginx entrypoint runs envsubst on UPSTREAM_GATEWAY at start.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  UPSTREAM_GATEWAY: "http://gateway.uat.svc.cluster.local:8080"

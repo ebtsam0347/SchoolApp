@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attendance-poller
+  labels:
+    app: attendance-poller
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: attendance-poller
+  template:
+    metadata:
+      labels:
+        app: attendance-poller
+    spec:
+      # Pod uses cluster network. Outbound to the device LAN
+      # (10.10.107.x) is MASQUERADE'd by flannel to the node's IP
+      # (10.10.100.50) — same source the device would see under
+      # hostNetwork: true. Verified via `ip route get 10.10.107.21
+      # → src 10.10.100.50` on the node. Avoiding hostNetwork keeps
+      # the pod inside the namespace's `baseline` PodSecurity envelope.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: attendance-poller
+          image: attendance-poller
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: attendance-poller-config
+            - secretRef:
+                name: attendance-poller-secret
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

@@ -1,0 +1,70 @@
+# Namespaces for ONE environment. ENV_NAME_PLACEHOLDER is substituted by
+# scripts/06-platform-up.sh from $ENV_NAME — `uat` on VM1, `prod` on VM2.
+#
+# With one environment per host there is nothing to reserve capacity against,
+# so the quota carries limits only. The numbers below are the ceiling for the
+# whole environment; retune per host rather than per environment.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ENV_NAME_PLACEHOLDER
+  labels:
+    env: ENV_NAME_PLACEHOLDER
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress
+
+# --- ResourceQuota ---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ENV_NAME_PLACEHOLDER-quota
+  namespace: ENV_NAME_PLACEHOLDER
+spec:
+  hard:
+    # 9 backends at 1 CPU + attendance-poller/web at 200m = 9.4 baseline.
+    # RollingUpdate's default maxSurge=25% (=1 for replicas=1) needs +1 CPU per
+    # surging service. When the orchestrator rolls everything in parallel
+    # (post-merge to main), 11 was too tight — the first 1-2 services surged,
+    # the rest hit FailedCreate and blew past the build's 300s rollout timeout
+    # (audit#11 was the canary). 14 = 9.4 + 4 concurrent surges of headroom.
+    # CPU limits are throttling, not reservations, so this can exceed node CPU.
+    limits.cpu: "14"
+    limits.memory: 24Gi
+    pods: "60"
+
+# --- LimitRange: container defaults so pods without explicit requests still get sane numbers ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-container-limits
+  namespace: ENV_NAME_PLACEHOLDER
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "2"
+        memory: 4Gi

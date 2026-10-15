@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - sealed-secret.yaml
+
+configMapGenerator:
+  - name: attendance-poller-config
+    behavior: merge
+    literals:
+      - HRMS_OPENAPI_SERVER_URL=https://hrms.forward.pk/api
+      # Direct to attendance, NOT through the gateway. The gateway needs an
+      # `Authorization: Bearer` JWT it can validate before it will inject
+      # X-User-*; the poller has no login flow (`--token` is a static flag,
+      # and auth's RS256 tokens expire), so every gateway call came back 403
+      # on GET /devices/poller-targets. Attendance runs
+      # `hrms.security.identity-source=header`, so the poller asserts its own
+      # identity below — the same shape docker-compose uses locally.
+      - POLLER_BASE_URL=http://attendance.prod.svc.cluster.local:8083
+      # Satisfies @RequirePermission("attendance.poller") on the
+      # poller-targets feed. Not a secret: it is an identity assertion that
+      # only attendance's ClusterIP service will honour.
+      - POLLER_IDENTITY_USER_ID=0
+      - POLLER_IDENTITY_USERNAME=system-poller
+      - POLLER_IDENTITY_PERMISSIONS=attendance.poller
+
+images:
+  - name: attendance-poller
+    newName: 10.10.100.51:5001/attendance-poller
+    newTag: "GIT_SHA_PLACEHOLDER"
+
+patches:
+  - path: deployment-patch.yaml

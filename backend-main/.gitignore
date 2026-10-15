@@ -1,0 +1,44 @@
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE — IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE — VS Code
+.vscode/
+
+# IDE — Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / runtime
+*.log
+logs/
+
+# Local env
+.env
+.env.local
+.env.db
+
+# Claude Code local state
+.claude/
+
+# Legacy DB migration tooling
+migration/.venv/
+migration/__pycache__/
+migration/profile.csv
+migration/triage.md
+
+# Docs (local only)
+docs/

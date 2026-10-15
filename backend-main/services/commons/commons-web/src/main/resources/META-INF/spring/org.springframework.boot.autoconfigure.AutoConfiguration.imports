@@ -1,0 +1,6 @@
+com.forward.hrms.commons.web.autoconfig.WebAutoConfiguration
+com.forward.hrms.commons.web.autoconfig.HeaderIdentityAutoConfiguration
+com.forward.hrms.commons.web.autoconfig.JwtSecurityAutoConfiguration
+com.forward.hrms.commons.web.autoconfig.IdempotencyAutoConfiguration
+com.forward.hrms.commons.web.autoconfig.HardeningAutoConfiguration
+com.forward.hrms.commons.web.openapi.OpenApiAutoConfiguration

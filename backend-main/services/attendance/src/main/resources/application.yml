@@ -1,0 +1,96 @@
+spring:
+  application:
+    name: attendance
+  mvc:
+    async:
+      # 5 min ceiling for /reports/** streams. The default 30s is fine for
+      # ad-hoc API calls but trips on the larger report queries.
+      request-timeout: 300000
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fshrms}?currentSchema=attendance
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: attendance
+  flyway:
+    enabled: true
+    default-schema: attendance
+    schemas: attendance
+    out-of-order: true
+    locations: classpath:db/migration,classpath:db/commons-outbox,classpath:db/commons-approval
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: attendance
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8083
+
+hrms:
+  approval:
+    permissions:
+      read: attendance.read
+      write: attendance.write
+      admin: attendance.admin
+      override: attendance.approval.override
+  openapi:
+    title: Spirit of Islam School HRMS — Attendance API
+    description: |
+      Time + absence: punches, shifts, daily attendance projection, leaves,
+      overtime, regularization, holidays, and the multi-stage approval flow
+      shared by leave / OT / regularization. Hosts the leave / OT /
+      regularization approval inboxes with stage-aware filtering and
+      delegation expansion.
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  outbox:
+    enabled: true
+    poll-delay: 1s
+    batch-size: 100
+  employee:
+    base-url: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+  storage:
+    # MinIO for the device-user reconciliation Excel export (signed download).
+    # Shared "reports" bucket. UAT/prod override creds via sealed-secret.
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    region: ${MINIO_REGION:us-east-1}
+    ensure-buckets:
+      - reports
+    default-url-ttl: 10m
+  cache:
+    # commons-cache (Redis) for employee display + employee-service catalogs.
+    # Used by the FE-facing attendance composites (records-with-employee,
+    # punches-with-employee, operator dashboard, approvals inbox) to
+    # resolve employee summaries without per-row HTTP fan-out. Miss path
+    # falls through to employee-service via the URL below.
+    enabled: true
+    employee-service-url: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+  attendance:
+    poller:
+      # DevicePunchReplayJob — drains attendance_punch_unmatched in
+      # paginated batches. Env-var overrides go through this YAML so
+      # that Spring's relaxed binding plays nicely with the kebab-case
+      # property names used in the @Scheduled annotation (raw env vars
+      # don't reliably propagate to fixedDelayString).
+      replay-interval-ms: ${HRMS_ATTENDANCE_POLLER_REPLAY_INTERVAL_MS:60000}
+      replay-initial-delay-ms: ${HRMS_ATTENDANCE_POLLER_REPLAY_INITIAL_DELAY_MS:60000}
+      replay-batch-size: ${HRMS_ATTENDANCE_POLLER_REPLAY_BATCH_SIZE:10000}
+      unmatched-max-attempts: ${HRMS_ATTENDANCE_POLLER_UNMATCHED_MAX_ATTEMPTS:8}

@@ -1,0 +1,121 @@
+// audit-prod pipeline. Manual trigger only.
+//
+// Builds the head of the `prod` branch. Nothing else is deployable to prod:
+// promoting means merging into `prod`, and rolling back means pointing `prod`
+// at the older commit and re-running. There is no SHA parameter.
+//
+// Prod has no runtime or deploy-time dependency on the UAT VM: its own Jenkins,
+// its own registry, its own k3s. The pipeline DEFINITION is read from `prod`
+// too, so what ships is exactly what that branch holds.
+// See docs/server-setup.md §5 (promotion model).
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+  }
+
+  environment {
+    SERVICE      = 'audit'
+    SERVICE_PORT = '8085'
+    NAMESPACE    = 'prod'
+    // REGISTRY is NOT hardcoded — it comes from the Jenkins global env, set by
+    // server-setup/scripts/07-jenkins-install.sh as <HOST_IP>:5001. Each host
+    // pushes to its own registry; a hardcoded one here would ship prod images
+    // to the UAT VM.
+  }
+
+  stages {
+    stage('checkout') {
+      steps {
+        script {
+          if (!env.REGISTRY?.trim()) {
+            error 'REGISTRY is not set. Check ENV_NAME/REGISTRY in /etc/jenkins.env and re-run 07-jenkins-install.sh.'
+          }
+          if (!env.GIT_REPO_URL?.trim()) {
+            error 'GIT_REPO_URL is not set. Check /etc/jenkins.env and re-run 07-jenkins-install.sh.'
+          }
+        }
+        script {
+          env.BUILD_REF = '*/prod'
+        }
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: env.BUILD_REF]],
+          userRemoteConfigs: [[url: env.GIT_REPO_URL, credentialsId: 'github-ssh']]
+        ])
+        script {
+          env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.IMAGE = "${REGISTRY}/${SERVICE}:${GIT_SHORT_SHA}"
+          echo "Building ${env.BUILD_REF} (${env.GIT_SHORT_SHA}) -> ${IMAGE}"
+        }
+      }
+    }
+
+    stage('build jar') {
+      steps {
+        // -am pulls in commons modules. Uses host .m2 cache so not every
+        // build re-downloads the world.
+        dir('services') {
+          sh './mvnw -pl ${SERVICE} -am clean package -DskipTests -B'
+        }
+      }
+    }
+
+    stage('docker build + push') {
+      steps {
+        sh '''
+          docker build -f Dockerfile.service \
+            --build-arg SERVICE_NAME=${SERVICE} \
+            --build-arg SERVICE_PORT=${SERVICE_PORT} \
+            -t ${IMAGE} .
+          docker push ${IMAGE}
+        '''
+      }
+    }
+
+    stage('kustomize set image + apply') {
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {
+          sh '''
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get ns ${NAMESPACE}
+          '''
+          dir("services/${SERVICE}/k8s/overlays/prod") {
+            // Direct sed of the GIT_SHA_PLACEHOLDER baked into the overlay's
+            // kustomization.yaml. `kustomize edit set image` mishandles
+            // multi-colon registry URLs (host:port/name:tag), leaving the tag
+            // unset and the deployment pulling :latest.
+            sh '''
+              sed -i "s|GIT_SHA_PLACEHOLDER|${GIT_SHORT_SHA}|" kustomization.yaml
+              echo "--- rendered image ---"
+              kustomize build . | grep -E '^[[:space:]]+image:' | head -3
+              kustomize build . | kubectl --kubeconfig="$KUBECONFIG" apply -f -
+            '''
+          }
+          sh '''
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} rollout status deploy/${SERVICE} --timeout=300s
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get pods -l app=${SERVICE} -o wide
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "${SERVICE} ${GIT_SHORT_SHA} promoted to ${NAMESPACE}"
+    }
+    failure {
+      // Surface pod state on failure to make first-pass diagnosis quick.
+      withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} describe deploy/${SERVICE} || true'
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} logs -l app=${SERVICE} --tail=200 || true'
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+.needs-you-row {
+  outline: none;
+  display: block;
+}
+
+.needs-you-row:hover [data-interactive='true'],
+.needs-you-row:focus-visible [data-interactive='true'] {
+  background: var(--needs-you-row-hover, rgba(0, 0, 0, 0.04));
+}
+
+.needs-you-row:focus-visible [data-interactive='true'] {
+  box-shadow: inset 0 0 0 2px var(--needs-you-row-focus, rgba(0, 0, 0, 0.16));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needs-you-row [data-interactive='true'] {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MASTER TEMPLATE — Formal letter (category 3).
+
+  Copy this file to start a new one-off employee letter (service
+  letter, experience letter, increment letter, ...). One letter per
+  report fill — no detail band, no data source beyond a
+  JREmptyDataSource(1); every value comes in as a parameter.
+
+  Letterhead: logo top-left, company name + address top-right, thin
+  #9A2D2A rule below the header block. Date, recipient block, subject
+  line, body paragraph, signature block (name / title / signature
+  line), page footer with a confidentiality note.
+
+  Brand identity: #9A2D2A only in the header rule and the subject-line
+  label; the letter body itself is #1A1714 on white, same as any
+  printed business letter — a wall of color would undercut the formal
+  tone this document type needs.
+
+  Font: SansSerif (JVM logical font, no font-extension dependency).
+
+  Parameters are the only place company name / logo / generation
+  date+user are supplied — never hardcode them in a real report.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="master-formal-letter" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-0000000000f3">
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="logoPath"       class="java.lang.String"/>
+    <parameter name="letterDate"     class="java.lang.String"/>
+    <parameter name="recipientName"  class="java.lang.String"/>
+    <parameter name="recipientLine2" class="java.lang.String"/>
+    <parameter name="subjectLine"    class="java.lang.String"/>
+    <parameter name="bodyText"       class="java.lang.String"/>
+    <parameter name="signedByName"   class="java.lang.String"/>
+    <parameter name="signedByTitle"  class="java.lang.String"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+
+    <title>
+        <band height="90" splitType="Stretch">
+            <image onErrorType="Blank">
+                <reportElement x="0" y="0" width="60" height="40">
+                    <printWhenExpression><![CDATA[$P{logoPath} != null && !$P{logoPath}.isEmpty()]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{logoPath}]]></imageExpression>
+            </image>
+            <textField>
+                <reportElement x="205" y="0" width="350" height="18" forecolor="#1A1714"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="13" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="205" y="19" width="350" height="24" forecolor="#4A413A"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="48" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <textField>
+                <reportElement x="0" y="58" width="555" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Date: " + $P{letterDate}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <detail>
+        <band height="360" splitType="Stretch">
+            <textField>
+                <reportElement x="0" y="0" width="555" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{recipientName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="15" width="555" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{recipientLine2}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="38" width="555" height="16" forecolor="#9A2D2A"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Subject: " + $P{subjectLine}]]></textFieldExpression>
+            </textField>
+
+            <textField isStretchWithOverflow="true">
+                <reportElement x="0" y="60" width="555" height="240" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="10"/></textElement>
+                <textFieldExpression><![CDATA[$P{bodyText}]]></textFieldExpression>
+            </textField>
+
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="308" width="250" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Sincerely,"]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="336" width="180" height="1" forecolor="#1A1714"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="338" width="250" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{signedByName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="350" width="250" height="10" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{signedByTitle}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="26">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="6" width="400" height="16" forecolor="#4A413A"/>
+                <textElement>
+                    <font fontName="SansSerif" size="6.5" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["This letter is confidential and intended solely for the named recipient. "
+                    + "Generated by FS-HRMS on " + $P{generatedAt}
+                    + ($P{generatedBy} == null || $P{generatedBy}.isEmpty() ? "" : " by " + $P{generatedBy})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="475" y="6" width="80" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

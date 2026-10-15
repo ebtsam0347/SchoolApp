@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: uat
+
+resources:
+  - ../../base
+  - sealed-secret.yaml
+
+configMapGenerator:
+  - name: chat-config
+    behavior: merge
+    literals:
+      - HRMS_OPENAPI_SERVER_URL=http://api.uat.hrms.local
+      - DB_NAME=uat
+
+images:
+  - name: chat
+    newName: 10.10.100.50:5001/chat
+    newTag: "GIT_SHA_PLACEHOLDER"
+
+patches:
+  - path: deployment-patch.yaml

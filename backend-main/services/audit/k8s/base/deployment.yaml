@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit
+  labels:
+    app: audit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit
+  template:
+    metadata:
+      labels:
+        app: audit
+    spec:
+      containers:
+        - name: audit
+          image: audit
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8085
+            - name: mgmt
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: audit-config
+            - secretRef:
+                name: audit-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: mgmt
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: mgmt
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3

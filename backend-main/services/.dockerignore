@@ -1,0 +1,14 @@
+# Keep the build context small. Each service Dockerfile copies its own
+# fat jar from `<service>/target/<service>-*-SNAPSHOT.jar`, so we need
+# those jars in the context — but nothing else from target/.
+
+**/target/**
+!**/target/*-SNAPSHOT.jar
+**/target/*.original
+
+**/.idea/
+**/.vscode/
+**/*.iml
+.git/
+.gitignore
+**/.DS_Store

@@ -1,0 +1,1543 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FSHRMS — Audit API",
+    "description": "Append-only audit log + user-facing timeline. Ingests audit events from\nevery service over per-service Kafka topics (<svc>.audit) and exposes\nread-only views by entity, actor, correlation id, plus admin replay.\n",
+    "contact": {
+      "name": "Forward Sports HRMS team",
+      "email": "it@forwardsports.com"
+    },
+    "license": {
+      "name": "Proprietary — Forward Sports"
+    },
+    "version": "0.0.1-SNAPSHOT"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API gateway (single ingress)"
+    }
+  ],
+  "security": [
+    {
+      "Authorization": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin — Audit",
+      "description": "Bounded replay tool, dead-letter triage, and consumer-lag health view. Requires `audit.admin`."
+    },
+    {
+      "name": "Audit — Read",
+      "description": "Compliance views over the full audit log. Requires `audit.read`."
+    },
+    {
+      "name": "Timeline",
+      "description": "User-facing timeline per entity. Returns only events flagged `user_visible = true`. HR/ADMIN see everything; a regular user can read their own user/employee timeline."
+    }
+  ],
+  "paths": {
+    "/admin/audit/replay": {
+      "post": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "Replay a bounded Kafka offset range",
+        "description": "Idempotent ingest makes duplicates safe — they're counted as `skipped`. Use `dryRun = true` to size the work first. Requires `audit.admin`.",
+        "operationId": "replay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Replay outcome.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown topic, or invalid offset range.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Topic has no partitions matching the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit/dead-letters/{id}/replay": {
+      "post": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "Replay one dead-letter row",
+        "description": "Re-runs the stored envelope through ingest. On INSERTED/DUPLICATE the dead-letter row is deleted; on STILL_FAILING the row is updated with the new reason and the attempt counter advances. Requires `audit.admin`.",
+        "operationId": "replayDeadLetter",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replay outcome.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeadLetterReplayResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No row with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeadLetterReplayResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timeline/{entityType}/{entityId}": {
+      "get": {
+        "tags": [
+          "Timeline"
+        ],
+        "summary": "Read an entity timeline (user-visible events only)",
+        "description": "Cursor pagination via the opaque `cursor` returned in the previous page's `nextCursor`.",
+        "operationId": "timeline",
+        "parameters": [
+          {
+            "name": "entityType",
+            "in": "path",
+            "description": "Entity type, e.g. `employee` or `user`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "user"
+          },
+          {
+            "name": "entityId",
+            "in": "path",
+            "description": "Entity id (string for flexibility).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 1042
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Inclusive lower bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Exclusive upper bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 50, max 200).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from a previous response.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline page (newest first).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller may not read this entity's timeline.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timeline/self/sign-in-events": {
+      "get": {
+        "tags": [
+          "Timeline"
+        ],
+        "summary": "List my sign-in events (cursor-paginated)",
+        "description": "Caller's login.success / login.failed / user.locked / user.unlocked events, newest first. Pass `cursor` from the previous response's `nextCursor` to scroll back. Always scoped to the calling user; no userId param.",
+        "operationId": "mySignInEvents",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Inclusive lower bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Exclusive upper bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 100, max 500).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from a previous response.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page of sign-in events for the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageSignInEvent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageSignInEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/search": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "Search audit events",
+        "description": "Substring match on `message` (case-insensitive) plus optional filters on entity type, action, correlationId, actorUserId, userVisible, and time range. Standard `page`, `size`, `sort` apply (default sort: `occurredAt,desc`). All filters are AND-combined; pass only what you need. The drawer's \"View by correlation\" deep-link uses `correlationId`. Time-window guard (§6.7): when `from` is omitted it defaults to 90 days back; the `(from..to)` window is capped at 1 year. Requires `audit.read`.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Free-text substring matched against `message`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "in": "query",
+            "description": "Filter by entity type.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "description": "Filter by action.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlationId",
+            "in": "query",
+            "description": "Exact correlation-id match — supports the drawer's \"View by correlation\" deep-link without falling back to /audit/by-correlation/{id}.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorUserId",
+            "in": "query",
+            "description": "Exact actor user id match. Same data as /audit/by-actor/{id} but composable with the other filters.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "userVisible",
+            "in": "query",
+            "description": "Tri-state: omit for all, true for user-facing, false for system-only.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Window start (inclusive). Defaults to 90 days back when omitted.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Window end (inclusive). Defaults to now.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Time window > 1 year — narrow `from`/`to` and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseAuditEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/facets": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "Distinct facet values for the explorer",
+        "description": "Observed entity types, actions, and source services with frequencies. Cached for 5 minutes per process — fine for the explorer's filter dropdowns. Requires `audit.read`.",
+        "operationId": "facets",
+        "responses": {
+          "200": {
+            "description": "Facets, ordered by frequency desc.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacetsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/events/{id}": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "Single audit event by id",
+        "description": "Returns the full event including before/after/changes/metadata. The drawer hits this for the \"open detail\" path. Owning audit-service lets us add redaction policy here later without touching producers. Requires `audit.read`.",
+        "operationId": "event",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Event id.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 5421
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit event found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/by-entity/{entityType}/{entityId}": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "Full history for one entity (cursor-paginated)",
+        "description": "Newest first. Use `from`/`to` to bound; `limit` caps page size (default 100, max 500). Pass `cursor` from the previous response's `nextCursor` to fetch the next page; `nextCursor` is null when the list is exhausted. Requires `audit.read`.",
+        "operationId": "byEntity",
+        "parameters": [
+          {
+            "name": "entityType",
+            "in": "path",
+            "description": "Entity type.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "employee"
+          },
+          {
+            "name": "entityId",
+            "in": "path",
+            "description": "Entity id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": 1057
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Inclusive lower bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Exclusive upper bound (ISO-8601 instant).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 100, max 500).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from a previous response.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page of audit events for the entity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageAuditEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/by-correlation/{correlationId}": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "All events sharing a correlation id",
+        "description": "Paginated reconstruction of a single request's footprint across services. Default page size 200, max 500 — pathological correlations (long-running sagas with hundreds of audit emits) need cursoring. Requires `audit.read`.",
+        "operationId": "byCorrelation",
+        "parameters": [
+          {
+            "name": "correlationId",
+            "in": "path",
+            "description": "Correlation id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseAuditEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/by-actor/{userId}": {
+      "get": {
+        "tags": [
+          "Audit — Read"
+        ],
+        "summary": "Audit events authored by a user",
+        "description": "Standard `page`, `size`, `sort` query params apply. Requires `audit.read`.",
+        "operationId": "byActor",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "Actor user id.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 42
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseAuditEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit/health": {
+      "get": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "Consumer health per audit topic",
+        "description": "Per-topic and per-partition end offsets, committed offsets, and lag. Requires `audit.admin`.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit/dead-letters": {
+      "get": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "List parked envelopes",
+        "description": "Filter by source service, reason, and lower bound on `receivedAt`. Listing projection drops `rawPayload` to keep responses small — fetch the full row via `GET /admin/audit/dead-letters/{id}`. Requires `audit.admin`.",
+        "operationId": "listDeadLetters",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "description": "Filter by source service (auth, employee, …).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "description": "Filter by skip reason.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MALFORMED_JSON",
+                "MISSING_EVENT_ID",
+                "OVERSIZED_EVENT_ID",
+                "MISSING_REQUIRED_PAYLOAD",
+                "UNPARSEABLE_OCCURRED_AT"
+              ]
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Inclusive lower bound on receivedAt (ISO-8601).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page of dead-letter rows, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseAuditDeadLetterDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit/dead-letters/{id}": {
+      "get": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "Fetch one dead-letter row (full raw payload)",
+        "description": "Includes the original envelope JSON. Requires `audit.admin`.",
+        "operationId": "getDeadLetter",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dead-letter row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditDeadLetterDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No row with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditDeadLetterDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin — Audit"
+        ],
+        "summary": "Discard one dead-letter row",
+        "description": "Permanently drops the parked envelope. Use when ingest can never succeed (e.g. the data is genuinely corrupt and not worth recovering). Requires `audit.admin`.",
+        "operationId": "discardDeadLetter",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Discarded."
+          },
+          "404": {
+            "description": "No row with that id."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ReplayRequest": {
+        "type": "object",
+        "description": "Replay a bounded Kafka offset range from one audit topic. Idempotent ingest makes duplicates safe.",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Audit topic to replay. Must be one of the configured `<svc>.audit` topics.",
+            "example": "employee.audit",
+            "minLength": 1
+          },
+          "fromOffset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Inclusive lower bound (offset). 0-based.",
+            "example": 12345
+          },
+          "toOffset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Exclusive upper bound (offset). Must be greater than `fromOffset`.",
+            "example": 13000
+          },
+          "partition": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Restrict to a single partition. Omit to replay the offset range across all partitions.",
+            "example": 0
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, count what would be replayed without writing. The response includes a `replayToken` you must echo back on the non-dry call within the next ~5 minutes.",
+            "example": false
+          },
+          "countOnly": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": false,
+            "description": "If true, return an approximate row count without polling Kafka. Cheap — useful for the \"About to replay ~412 records\" prompt before the real button click. Mutually exclusive with `dryRun`.",
+            "example": false
+          },
+          "replayToken": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token returned by a previous `dryRun: true` call. Required for `dryRun: false` to prevent firing a non-dry replay without dry-running first. Tokens are valid for ~5 minutes.",
+            "example": "01HZK7G6Y0PSV2TPC9N9XSH3WC"
+          }
+        },
+        "required": [
+          "fromOffset",
+          "toOffset",
+          "topic"
+        ]
+      },
+      "ReplayResult": {
+        "type": "object",
+        "description": "Outcome of a replay request.",
+        "properties": {
+          "replayed": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of records inserted (or, in dry-run, that would have been inserted; in count-only mode, the approximate upper-bound row count from the offset range).",
+            "example": 412
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of records skipped — duplicates (already ingested) and malformed payloads.",
+            "example": 53
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of records that failed with an exception during ingest.",
+            "example": 0
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Echoes the request — true if no rows were written.",
+            "example": false
+          },
+          "countOnly": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Set to true on count-only responses (cheap upper-bound estimate, no Kafka poll).",
+            "example": false
+          },
+          "replayToken": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived token issued on dryRun:true responses. Echo back as `replayToken` on the non-dry call. Null on non-dry-run responses.",
+            "example": "01HZK7G6Y0PSV2TPC9N9XSH3WC"
+          }
+        }
+      },
+      "DeadLetterReplayResult": {
+        "type": "object",
+        "description": "Outcome of replaying a single dead-letter row.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Status: INSERTED (row written + dead-letter deleted), DUPLICATE (audit_events already had it; dead-letter deleted), STILL_FAILING (ingest rejected again; dead-letter row updated with new reason).",
+            "enum": [
+              "INSERTED",
+              "DUPLICATE",
+              "STILL_FAILING"
+            ],
+            "example": "INSERTED"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "If STILL_FAILING, the new reason ingest returned. Else null.",
+            "enum": [
+              "MALFORMED_JSON",
+              "MISSING_EVENT_ID",
+              "OVERSIZED_EVENT_ID",
+              "MISSING_REQUIRED_PAYLOAD",
+              "UNPARSEABLE_OCCURRED_AT"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "If STILL_FAILING, free-form detail. Else null."
+          }
+        }
+      },
+      "TimelineEntry": {
+        "type": "object",
+        "description": "User-facing timeline entry. One row per `user_visible = true` audit event.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 5421
+          },
+          "action": {
+            "type": "string",
+            "example": "updated"
+          },
+          "actorUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Actor's user id. `actorLabel` is filled at producer time from the JWT `name` claim; null only for events emitted before that wiring landed (Step 6) or by system actors with no display name.",
+            "example": 1042
+          },
+          "actorUsername": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "FS-2026-0042"
+          },
+          "actorLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Saqib Mushtaq"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Phone number updated."
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:33Z"
+          }
+        }
+      },
+      "TimelinePage": {
+        "type": "object",
+        "description": "Cursor-paginated timeline response.",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor for the next page, null at end.",
+            "example": "MjAyNi0wNC0yOFQwOToxMjozM1o6NTQyMQ"
+          }
+        }
+      },
+      "CursorPageSignInEvent": {
+        "type": "object",
+        "description": "Cursor-paginated response.",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInEvent"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor for the next page, null at end.",
+            "example": "MjAyNi0wNC0yOFQwOToxMjozM1o6NTQyMQ"
+          }
+        }
+      },
+      "SignInEvent": {
+        "type": "object",
+        "description": "One sign-in event for the caller's own user record.",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the event occurred.",
+            "example": "2026-04-28T08:14:22Z"
+          },
+          "action": {
+            "type": "string",
+            "description": "Audit action.",
+            "enum": [
+              "login.success",
+              "login.failed",
+              "user.locked",
+              "user.unlocked"
+            ],
+            "example": "login.success"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "True if the login attempt succeeded.",
+            "example": false
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "Originating IP, if recorded.",
+            "example": "203.0.113.42"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User-Agent header, if recorded.",
+            "example": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ..."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Failure reason for failed/locked entries (BAD_PASSWORD, USER_DISABLED, USER_LOCKED).",
+            "example": "BAD_PASSWORD"
+          }
+        }
+      },
+      "AuditEventDto": {
+        "type": "object",
+        "description": "An audit event row. JSON fields are returned as-is from the emitting service.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 5421
+          },
+          "eventId": {
+            "type": "string",
+            "example": "01HZK7G6Y0PSV2TPC9N9XSH3WC"
+          },
+          "sourceService": {
+            "type": "string",
+            "example": "employee"
+          },
+          "entityType": {
+            "type": "string",
+            "example": "employee"
+          },
+          "entityId": {
+            "type": "string",
+            "example": "1057"
+          },
+          "action": {
+            "type": "string",
+            "example": "updated"
+          },
+          "actorUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "example": 42
+          },
+          "actorUsername": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "FS-2026-0042"
+          },
+          "actorLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Saqib Mushtaq"
+          },
+          "before": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Snapshot before the change."
+          },
+          "after": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Snapshot after the change."
+          },
+          "changes": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Pre-diffed { field: { from, to } } if the emitter supplied it."
+          },
+          "metadata": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Producer metadata (ip, user-agent, source)."
+          },
+          "correlationId": {
+            "type": "string",
+            "example": "8c2cc4e0-..."
+          },
+          "ipAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "203.0.113.5"
+          },
+          "userVisible": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Phone number updated."
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:33Z"
+          },
+          "ingestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:34Z"
+          }
+        }
+      },
+      "JsonNode": {
+        "type": "object",
+        "properties": {
+          "array": {
+            "type": "boolean"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "null": {
+            "type": "boolean"
+          },
+          "float": {
+            "type": "boolean"
+          },
+          "floatingPointNumber": {
+            "type": "boolean"
+          },
+          "integralNumber": {
+            "type": "boolean"
+          },
+          "missingNode": {
+            "type": "boolean"
+          },
+          "long": {
+            "type": "boolean"
+          },
+          "double": {
+            "type": "boolean"
+          },
+          "bigDecimal": {
+            "type": "boolean"
+          },
+          "bigInteger": {
+            "type": "boolean"
+          },
+          "textual": {
+            "type": "boolean",
+            "deprecated": true
+          },
+          "boolean": {
+            "type": "boolean"
+          },
+          "binary": {
+            "type": "boolean"
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "ARRAY",
+              "BINARY",
+              "BOOLEAN",
+              "MISSING",
+              "NULL",
+              "NUMBER",
+              "OBJECT",
+              "POJO",
+              "STRING"
+            ]
+          },
+          "string": {
+            "type": "boolean"
+          },
+          "valueNode": {
+            "type": "boolean"
+          },
+          "object": {
+            "type": "boolean"
+          },
+          "pojo": {
+            "type": "boolean"
+          },
+          "short": {
+            "type": "boolean"
+          },
+          "int": {
+            "type": "boolean"
+          },
+          "container": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "boolean"
+          },
+          "embeddedValue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageResponseAuditEventDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventDto"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sort": {
+            "type": "string"
+          }
+        }
+      },
+      "Facet": {
+        "type": "object",
+        "description": "One distinct value with its row count.",
+        "properties": {
+          "value": {
+            "type": "string",
+            "example": "employee"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1248
+          }
+        }
+      },
+      "FacetsResponse": {
+        "type": "object",
+        "description": "Observed facet values across audit_events, ordered by frequency.",
+        "properties": {
+          "entityTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            }
+          },
+          "sourceServices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            }
+          }
+        }
+      },
+      "CursorPageAuditEventDto": {
+        "type": "object",
+        "description": "Cursor-paginated response.",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventDto"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor for the next page, null at end.",
+            "example": "MjAyNi0wNC0yOFQwOToxMjozM1o6NTQyMQ"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Per-topic consumer state — partition end offsets, committed offsets, and lag.",
+        "properties": {
+          "topics": {
+            "type": "array",
+            "description": "Per-topic snapshot.",
+            "items": {
+              "$ref": "#/components/schemas/TopicHealth"
+            }
+          }
+        }
+      },
+      "PartitionHealth": {
+        "type": "object",
+        "description": "Per-partition consumer state.",
+        "properties": {
+          "partition": {
+            "type": "integer",
+            "format": "int32",
+            "example": 0
+          },
+          "endOffset": {
+            "type": "integer",
+            "format": "int64",
+            "example": 13042
+          },
+          "committedOffset": {
+            "type": "integer",
+            "format": "int64",
+            "example": 13042
+          },
+          "lag": {
+            "type": "integer",
+            "format": "int64",
+            "example": 0
+          }
+        }
+      },
+      "TopicHealth": {
+        "type": "object",
+        "description": "Per-topic consumer state.",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "example": "employee.audit"
+          },
+          "consumerGroup": {
+            "type": "string",
+            "example": "audit.employee"
+          },
+          "totalLag": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sum of (endOffset - committedOffset) across partitions.",
+            "example": 0
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartitionHealth"
+            }
+          }
+        }
+      },
+      "AuditDeadLetterDto": {
+        "type": "object",
+        "description": "Audit envelope that ingest rejected. Held until an operator replays or discards.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Dead-letter row id.",
+            "example": 42
+          },
+          "sourceService": {
+            "type": "string",
+            "description": "Service that emitted the envelope.",
+            "example": "auth"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Source Kafka topic.",
+            "example": "auth.audit"
+          },
+          "partition": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Source Kafka partition.",
+            "example": 2
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Source Kafka offset.",
+            "example": 184273
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source Kafka key.",
+            "example": "user-1042"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why ingest rejected this envelope.",
+            "enum": [
+              "MALFORMED_JSON",
+              "MISSING_EVENT_ID",
+              "OVERSIZED_EVENT_ID",
+              "MISSING_REQUIRED_PAYLOAD",
+              "UNPARSEABLE_OCCURRED_AT"
+            ],
+            "example": "UNPARSEABLE_OCCURRED_AT"
+          },
+          "reasonDetail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Free-form detail captured at rejection."
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the consumer parked the envelope."
+          },
+          "lastReplayAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Last time an operator hit /replay."
+          },
+          "replayAttempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of replay attempts.",
+            "example": 0
+          },
+          "rawPayload": {
+            "type": "string",
+            "description": "Original envelope JSON (truncated above 1MB)."
+          }
+        }
+      },
+      "PageResponseAuditDeadLetterDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditDeadLetterDto"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sort": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Authorization": {
+        "type": "http",
+        "description": "Paste the access token returned from POST /auth/login (without the 'Bearer ' prefix).",
+        "name": "Authorization",
+        "in": "header",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

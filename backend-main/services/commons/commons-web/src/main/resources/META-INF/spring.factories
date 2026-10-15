@@ -1,0 +1,3 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.forward.hrms.commons.web.openapi.SwaggerUiDefaultsEnvironmentPostProcessor,\
+com.forward.hrms.commons.web.autoconfig.HardeningDefaultsEnvironmentPostProcessor

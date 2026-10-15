@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forward.hrms</groupId>
+        <artifactId>services</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>bff</artifactId>
+    <name>bff</name>
+    <description>Backend-for-Frontend — page-shaped composites over auth/audit/employee.</description>
+
+    <!--
+        Stack: webmvc + virtual threads. Reuses commons-web (header-identity
+        filter, ProblemDetail mapper, OpenAPI autoconfig, @RequirePermission,
+        PageResponse) so this module reads like every other downstream
+        service. Two simple parallel fan-outs (3- and 5-call composites)
+        are the entire current scope; virtual threads handle the
+        concurrency without any reactive ceremony.
+
+        When SSE for live notifications actually lands (see docs/services/
+        bff-web.md §5), revisit — that's the genuine demand for WebFlux.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>commons-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>commons-web</artifactId>
+        </dependency>
+        <!-- Jasper renderer for the executive-dashboard PDF (phase 7b). -->
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>commons-reports</artifactId>
+        </dependency>
+        <!--
+            Shared Redis cache for employee display fields and the eight
+            employee-service catalogs. Enabled via hrms.cache.enabled=true
+            (see application.yml). Pulls commons-employee-events +
+            commons-kafka transitively so the cache-updater @KafkaListener
+            can run.
+        -->
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>commons-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forward.hrms</groupId>
+            <artifactId>commons-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!--
+            CLAUDE.md gotcha: spring-boot-starter-webmvc does NOT bring
+            RestClient onto the classpath in SB4 (it lives in the separate
+            spring-boot-restclient module). Pull it explicitly. Construct
+            via RestClient.builder().baseUrl(...).build() in each client's
+            ctor — don't @Autowired the Builder.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
+        </dependency>
+
+        <!--
+            Redis is here only for the live-notification SSE stream
+            (/bff/notifications/stream). The BFF subscribes to the
+            notifications:{userId} pub/sub channel that notification-service
+            publishes to and forwards each message to the SSE client. No
+            keys are written from this service.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

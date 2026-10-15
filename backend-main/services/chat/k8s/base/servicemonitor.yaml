@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: chat
+  labels:
+    app: chat
+    release: kps
+spec:
+  selector:
+    matchLabels:
+      app: chat
+  endpoints:
+    - port: mgmt
+      path: /actuator/prometheus
+      interval: 30s

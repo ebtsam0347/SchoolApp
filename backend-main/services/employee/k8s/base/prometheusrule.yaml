@@ -1,0 +1,80 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: employee
+  labels:
+    app: employee
+    release: kps
+spec:
+  groups:
+    - name: employee.slo
+      rules:
+        # 5xx rate above 5% for 5m — most likely to surface real bugs.
+        - alert: EmployeeHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="employee",status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="employee"}[5m]))
+              > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: employee
+          annotations:
+            summary: "employee 5xx rate > 5% (ns {{ $labels.namespace }})"
+            description: "5xx rate is {{ $value | humanizePercentage }} over the last 5m."
+
+        # No instances scraping at all — pod gone or mgmt port down.
+        - alert: EmployeeDown
+          expr: up{job="employee"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: employee
+          annotations:
+            summary: "employee is down (ns {{ $labels.namespace }})"
+            description: "No Prometheus targets for employee are reporting up=1 for 2 minutes."
+
+        # p95 above 1s sustained — pre-incident latency signal.
+        - alert: EmployeeHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, le) (rate(http_server_requests_seconds_bucket{app="employee"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            service: employee
+          annotations:
+            summary: "employee p95 latency > 1s (ns {{ $labels.namespace }})"
+            description: "p95 latency is {{ $value | humanizeDuration }} over the last 5m, sustained 10m."
+
+        # Heap pool used > 90% of committed for 10m — about to OOM, GC thrashing soon.
+        - alert: EmployeeJvmHeapPressure
+          expr: |
+            sum by (namespace, pod) (jvm_memory_used_bytes{app="employee",area="heap"})
+              /
+            sum by (namespace, pod) (jvm_memory_committed_bytes{app="employee",area="heap"})
+              > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            service: employee
+          annotations:
+            summary: "employee JVM heap > 90% on {{ $labels.pod }}"
+            description: "Heap used / committed is {{ $value | humanizePercentage }} for 10m. Consider raising memory limits or investigating a leak."
+
+        # HikariCP threads waiting on a connection — DB pool starvation.
+        # Fires only on services with a DataSource (auth/audit/employee/
+        # attendance/payroll/notification/chat). Gateway/bff have no metric
+        # so the rule silently no-ops.
+        - alert: EmployeeHikariConnectionStarvation
+          expr: |
+            max by (namespace, pod) (hikaricp_connections_pending{app="employee"}) > 0
+          for: 5m
+          labels:
+            severity: warning
+            service: employee
+          annotations:
+            summary: "employee DB pool starved on {{ $labels.pod }}"
+            description: "{{ $value }} thread(s) waiting for a HikariCP connection for 5m. Tune pool size or investigate slow queries."

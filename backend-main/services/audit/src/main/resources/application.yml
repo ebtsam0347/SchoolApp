@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: audit
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fshrms}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: audit
+  flyway:
+    enabled: true
+    default-schema: audit
+    schemas: audit
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: audit
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      # MANUAL_IMMEDIATE — the listener calls ack.acknowledge() only after
+      # the row commits. Compliance-grade: never advance the offset before
+      # the audit row is durable, even if the JVM dies between consume and save.
+      ack-mode: manual_immediate
+      # Concurrency must match topic partition count. Dev/UAT topics are
+      # 1-partition, so default 1 — a higher value spawns idle consumer
+      # threads that still heartbeat against the broker and dominate
+      # idle-baseline CPU on both audit and the kafka broker. Bump via
+      # SPRING_KAFKA_LISTENER_CONCURRENCY only after repartitioning the
+      # five <svc>.audit topics to match.
+      concurrency: 1
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8085
+
+# §7.audit #34 — DEBUG default removed. Per-env overrides can dial it
+# back up via SPRING_PROFILES_ACTIVE / LOGGING_LEVEL_* when investigating.
+
+hrms:
+  openapi:
+    title: Spirit of Islam School HRMS — Audit API
+    description: |
+      Append-only audit log + user-facing timeline. Ingests audit events from
+      every service over per-service Kafka topics (<svc>.audit) and exposes
+      read-only views by entity, actor, correlation id, plus admin replay.
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    # Aggregated Swagger UI lives at the gateway (default :8080). See note in
+    # auth's application.yml.
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  outbox:
+    # audit-service does not publish events.
+    enabled: false
+  audit:
+    topics:
+      - auth.audit
+      - employee.audit
+      - attendance.audit
+      - payroll.audit
+      - notification.audit

@@ -1,0 +1,89 @@
+# Traefik IngressRoutes for the observability UIs. INTERNAL ONLY.
+#
+# k3s ships Traefik out of the box (svc/traefik in kube-system, port 80/443),
+# so an IngressRoute is the cluster-native way to expose these without
+# per-service Ingress objects.
+#
+# WHY THESE ARE NOT ON hrms.forward.pk
+#
+# Only Grafana has a login. Prometheus, Alertmanager and Zipkin have NO
+# authentication whatsoever — upstream's default, and nothing here changes it.
+# On a publicly-resolvable name, anyone who guessed the hostname could read
+# every metric and trace the cluster collects and POST silences to Alertmanager
+# to suppress alerting. So `app` and `api` get public DNS on the real domain;
+# these four stay on the LAN.
+#
+# That decision is also why they are plain HTTP with no certificate. Two
+# constraints meet here:
+#   - Let's Encrypt validates over the public internet. A name that resolves
+#     only on the LAN can never pass HTTP-01, so ACME is not an option.
+#   - forward.pk sends `Strict-Transport-Security: includeSubDomains`, so any
+#     hostname under it is force-upgraded to HTTPS by the browser with no
+#     click-through on an untrusted cert. Serving these from *.hrms.forward.pk
+#     would therefore require an internal CA root installed on every machine.
+# Keeping them on `.local` — which carries no HSTS policy — avoids both.
+#
+# INTERNAL_SUFFIX_PLACEHOLDER is substituted by scripts/06-platform-up.sh and
+# is always `<env>.hrms.local`, so one /etc/hosts can reach both VMs:
+#
+#   10.10.100.50 grafana.uat.hrms.local prometheus.uat.hrms.local alertmanager.uat.hrms.local zipkin.uat.hrms.local
+#   10.10.100.51 grafana.prod.hrms.local prometheus.prod.hrms.local alertmanager.prod.hrms.local zipkin.prod.hrms.local
+#
+# If these ever need to leave the LAN, put them behind the gateway's auth or a
+# VPN — do not simply add public DNS records.
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`grafana.INTERNAL_SUFFIX_PLACEHOLDER`)
+      kind: Rule
+      services:
+        - name: kps-grafana
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: observability
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`prometheus.INTERNAL_SUFFIX_PLACEHOLDER`)
+      kind: Rule
+      services:
+        - name: kps-kube-prometheus-stack-prometheus
+          port: 9090
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: observability
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`alertmanager.INTERNAL_SUFFIX_PLACEHOLDER`)
+      kind: Rule
+      services:
+        - name: kps-kube-prometheus-stack-alertmanager
+          port: 9093
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: zipkin
+  namespace: observability
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`zipkin.INTERNAL_SUFFIX_PLACEHOLDER`)
+      kind: Rule
+      services:
+        - name: zipkin
+          port: 9411

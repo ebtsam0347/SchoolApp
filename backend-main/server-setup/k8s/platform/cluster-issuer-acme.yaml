@@ -1,0 +1,57 @@
+# Let's Encrypt ACME issuers, for hosts that serve on a real public domain.
+#
+# HTTP-01, not DNS-01: forward.pk's nameservers (mysecurecloudhost) have no
+# cert-manager solver, so proving ownership by TXT record would be a manual
+# chore every 90 days. HTTP-01 renews itself — at the cost of requiring that
+# the host really is reachable from the internet on port 80.
+#
+# PREREQUISITES, in this order. Certificate issuance fails until all three hold:
+#   1. A public IP NATs to this VM on 80 and 443.
+#   2. Every hostname in the ingress manifests has a public A record pointing
+#      at that IP. Let's Encrypt resolves them from the outside — a record that
+#      only exists in internal DNS or /etc/hosts is invisible to it.
+#   3. Nothing upstream intercepts /.well-known/acme-challenge/.
+#
+# STAGING FIRST. Let's Encrypt production rate-limits hard: 5 failed
+# validations per account/hostname/hour and 50 certificates per registered
+# domain per week. A misconfigured NAT can burn that allowance in minutes and
+# lock you out for a week. `ACME_ISSUER` in .env defaults to
+# letsencrypt-staging, whose certs chain to an untrusted root (the browser
+# still warns) but prove the plumbing works. Flip to letsencrypt-prod and
+# re-run 06 once a staging cert goes Ready.
+#
+# ACME_EMAIL_PLACEHOLDER and the issuer name are substituted by
+# scripts/06-platform-up.sh from .env.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ACME_EMAIL_PLACEHOLDER
+    # The ACME account key. Deleting this secret orphans the account and
+    # registers a new one on the next issuance — which resets nothing about
+    # the rate limits, since those are keyed on the domain too.
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ACME_EMAIL_PLACEHOLDER
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

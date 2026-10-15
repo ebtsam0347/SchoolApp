@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forward.hrms</groupId>
+        <artifactId>services</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>commons</artifactId>
+    <name>commons</name>
+    <description>Shared libraries for FSHRMS services</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>commons-core</module>
+        <module>commons-web</module>
+        <module>commons-kafka</module>
+        <module>commons-saga</module>
+        <module>commons-storage</module>
+        <module>commons-batch</module>
+        <module>commons-employee-events</module>
+        <module>commons-reports</module>
+        <module>commons-cache</module>
+        <module>commons-test</module>
+        <module>commons-approval</module>
+    </modules>
+</project>

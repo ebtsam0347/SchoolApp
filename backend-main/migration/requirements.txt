@@ -1,0 +1,20 @@
+# Legacy-migration tooling. Install into migration/.venv:
+#
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# The venv itself is gitignored, so this file is the only record of what
+# the scripts need — a fresh host (UAT/prod) has none of it preinstalled.
+#
+#   pymssql   replicate.py   — reads the legacy MSSQL source
+#   psycopg   all scripts    — writes the Postgres target
+#   PyYAML    replicate.py   — parses tables.yml
+#   bcrypt    07             — hashes ESS passwords (cost 12, in parallel)
+#   minio     09             — uploads profile pictures
+#   Pillow    09             — downscales the few photos over the 2MB avatar cap
+
+pymssql==2.3.13
+psycopg[binary]==3.3.3
+PyYAML==6.0.3
+bcrypt==5.0.0
+minio==7.2.20
+Pillow==12.3.0

@@ -1,0 +1,143 @@
+# Host compose stack: redis, kafka KRaft, minio, registry, admin UIs.
+# One environment per host — see docs/server-setup.md §2. There is no second
+# environment on this box, so nothing here is env-prefixed.
+# Postgres is NOT here — it lives on the host (see scripts/03-postgres-host-install.sh).
+# Bring up: ../scripts/05-infrastructure-up.sh
+
+services:
+  redis:
+    image: redis:8
+    container_name: redis
+    ports: ["6379:6379"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    ports: ["9092:9092"]
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # CONTROLLER + INTERNAL bind to the hostname "kafka" (NOT 0.0.0.0 — image
+      # rejects 0.0.0.0 in advertised.listeners and crash-loops).
+      # EXTERNAL is the only listener bound to all interfaces, for host clients.
+      KAFKA_LISTENERS: CONTROLLER://kafka:9093,INTERNAL://kafka:9094,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9094,EXTERNAL://${HOST_IP}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Single-broker reasonable defaults
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      # From inside the container we MUST use localhost:9092 (the EXTERNAL listener
+      # bound to 0.0.0.0). INTERNAL is bound to hostname "kafka" and won't loop back.
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports: ["8090:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9094
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    # Buckets are created on startup by each service's hrms.storage.ensure-buckets
+    # (employee-docs, employee-avatars, payslips, chat-attachments, reports).
+    # No `mc` bootstrap container — nothing needs to exist before the services run.
+    command: server /data --console-address :9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  registry:
+    image: registry:2
+    container_name: registry
+    ports: ["5001:5000"]
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry_data:/var/lib/registry
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/v2/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    ports: ["5540:5540"]
+    volumes:
+      - redisinsight_data:/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    ports: ["8091:80"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      # Allow .local addresses — pgadmin rejects RFC 6762 reserved TLDs by default,
+      # but our LAN convention (admin@fshrms.local, *.hrms.fs.local) uses .local.
+      PGADMIN_CONFIG_ALLOW_SPECIAL_EMAIL_DOMAINS: "['local']"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    # Lets pgadmin reach Postgres running on the host as `host.docker.internal:5432`.
+    # pg_hba allows the docker bridge range 172.16.0.0/12.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  kafka_data:
+  minio_data:
+  registry_data:
+  redisinsight_data:
+  pgadmin_data:

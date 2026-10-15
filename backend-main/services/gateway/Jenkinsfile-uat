@@ -1,0 +1,106 @@
+// gateway-uat pipeline. Triggered by `main` push (multibranch later) or manual.
+// Stages: clean Maven package → build image with Dockerfile.service →
+// push to local registry → kustomize edit set image → kubectl apply →
+// wait for rollout. Image tag = git short SHA, never `latest`.
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+  }
+
+  environment {
+    SERVICE      = 'gateway'
+    SERVICE_PORT = '8080'
+    REGISTRY     = '10.10.100.50:5001'
+    NAMESPACE    = 'uat'
+  }
+
+  stages {
+    stage('checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.IMAGE = "${REGISTRY}/${SERVICE}:${GIT_SHORT_SHA}"
+          echo "Building ${IMAGE}"
+        }
+      }
+    }
+
+    stage('build jar') {
+      steps {
+        // -am pulls in commons modules. Uses host .m2 cache so not every
+        // build re-downloads the world.
+        dir('services') {
+          sh './mvnw -pl ${SERVICE} -am clean package -DskipTests -B'
+        }
+      }
+    }
+
+    stage('docker build + push') {
+      steps {
+        sh '''
+          docker build -f Dockerfile.service \
+            --build-arg SERVICE_NAME=${SERVICE} \
+            --build-arg SERVICE_PORT=${SERVICE_PORT} \
+            -t ${IMAGE} .
+          docker push ${IMAGE}
+        '''
+      }
+    }
+
+    stage('kustomize set image + apply') {
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-uat', variable: 'KUBECONFIG')]) {
+          // Diagnostic — confirms the file credential is decoded as text and
+          // kubectl is hitting the k3s API, not Jenkins-on-:8080. If the
+          // server URL prints empty or like a Jenkins URL, the credential
+          // type is wrong.
+          sh '''
+            echo "KUBECONFIG=$KUBECONFIG"
+            ls -la "$KUBECONFIG" || true
+            head -c 64 "$KUBECONFIG" || true; echo
+            kubectl --kubeconfig="$KUBECONFIG" config view --minify --raw=false -o jsonpath='{.clusters[0].cluster.server}' || true
+            echo
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get ns ${NAMESPACE}
+          '''
+          dir("services/${SERVICE}/k8s/overlays/uat") {
+            // Direct sed of the GIT_SHA_PLACEHOLDER baked into the overlay's
+            // kustomization.yaml. `kustomize edit set image` mishandles
+            // multi-colon registry URLs (host:port/name:tag), leaving the
+            // tag unset and the deployment pulling :latest.
+            sh '''
+              sed -i "s|GIT_SHA_PLACEHOLDER|${GIT_SHORT_SHA}|" kustomization.yaml
+              echo "--- rendered image ---"
+              kustomize build . | grep -E '^[[:space:]]+image:' | head -3
+              kustomize build . | kubectl --kubeconfig="$KUBECONFIG" apply -f -
+            '''
+          }
+          sh '''
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} rollout status deploy/${SERVICE} --timeout=300s
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get pods -l app=${SERVICE} -o wide
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "auth ${GIT_SHORT_SHA} deployed to ${NAMESPACE}"
+    }
+    failure {
+      // Surface pod state on failure to make first-pass diagnosis quick.
+      withCredentials([file(credentialsId: 'kubeconfig-uat', variable: 'KUBECONFIG')]) {
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} describe deploy/${SERVICE} || true'
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} logs -l app=${SERVICE} --tail=200 || true'
+      }
+    }
+  }
+}

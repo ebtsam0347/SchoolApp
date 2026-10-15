@@ -1,0 +1,1389 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FSHRMS — Chat API",
+    "description": "Internal official chat. DMs, ad-hoc groups, an org-wide\nannouncements channel, attachments, mentions, presence, typing,\ndelivery and read indicators. Live delivery via the BFF SSE\nstream + Redis pub/sub. Durable fanout via Kafka outbox to\nnotification-service for bell entries.\n",
+    "contact": {
+      "name": "Forward Sports HRMS team",
+      "email": "it@forwardsports.com"
+    },
+    "license": {
+      "name": "Proprietary — Forward Sports"
+    },
+    "version": "0.0.1-SNAPSHOT"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API gateway (single ingress)"
+    }
+  ],
+  "security": [
+    {
+      "Authorization": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Chat — Presence",
+      "description": "Read-only presence snapshot. Status is `online` if the user has an SSE connection to the BFF in the last ~30 s, otherwise `offline` with `lastSeenAt` from the most recent SSE heartbeat."
+    },
+    {
+      "name": "Chat — Conversations",
+      "description": "DMs, groups, and the org-wide announcements channel. DM creation is idempotent on the (caller, otherUser) pair."
+    },
+    {
+      "name": "Chat — Search",
+      "description": "Full-text message search inside a single conversation. Member-scoped — caller must be a member of the conversation (BROADCAST is open to everyone)."
+    },
+    {
+      "name": "Chat — Attachments",
+      "description": "Two-step upload: ask for a signed PUT URL, upload to MinIO, then include the objectKey in the next send-message request."
+    },
+    {
+      "name": "Chat — Messages",
+      "description": "Send, edit (within 15 min), soft-delete, and page through messages. Realtime delivery is on the BFF SSE stream as `chat.message` events."
+    },
+    {
+      "name": "Chat — Broadcast",
+      "description": "Org-wide announcement channel. Posting requires `chat.broadcast.write`; everyone can read. Live SSE delivery via the global `chat:broadcast` channel."
+    },
+    {
+      "name": "Chat — Delivery",
+      "description": "Per-message delivery acknowledgements. The BFF calls this after a successful SSE forward of a `chat.message` event so the sender's UI can render ✓✓ (delivered)."
+    },
+    {
+      "name": "Chat — Typing",
+      "description": "Fire-and-forget typing indicator. The client debounces sending (e.g. once per 3 s while typing); the server publishes one Redis event per recipient."
+    },
+    {
+      "name": "Chat — Admin",
+      "description": "Admin/HR review endpoints. Caller must hold `chat.conversations.read`. Reads bypass membership; intended for compliance review of any conversation."
+    }
+  ],
+  "paths": {
+    "/chat/messages/{id}/delivery": {
+      "post": {
+        "tags": [
+          "Chat — Delivery"
+        ],
+        "summary": "Acknowledge delivery of a message to the caller",
+        "description": "Idempotent. Inserts (messageId, callerUserId) into `message_deliveries` and publishes `chat.message.delivered` to the sender's Redis channel.",
+        "operationId": "delivered",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}/typing": {
+      "post": {
+        "tags": [
+          "Chat — Typing"
+        ],
+        "summary": "Signal that I'm typing in this conversation",
+        "description": "Server publishes `chat.typing` to each conversation member except the caller. BROADCAST conversations are skipped — typing makes no sense for one-way channels.",
+        "operationId": "typing",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}/read": {
+      "post": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Update my read cursor",
+        "description": "Sets `last_read_message_id` for caller's row in this conversation. Only moves forward — older values are ignored.",
+        "operationId": "markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}/messages": {
+      "get": {
+        "tags": [
+          "Chat — Messages"
+        ],
+        "summary": "Page messages in a conversation (newest first)",
+        "description": "Keyset pagination by message id desc. Pass the lowest id from the previous page as `beforeId` for the next older page.",
+        "operationId": "page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "beforeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Chat — Messages"
+        ],
+        "summary": "Send a message",
+        "description": "Caller must be a member of the conversation. Returns the persisted message; live delivery to other members is dispatched after the transaction commits.",
+        "operationId": "send",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}/members": {
+      "post": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Add a member to a group",
+        "description": "Owner-only. 409 if user already a member or member cap reached.",
+        "operationId": "addMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMemberRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/chat/conversations/group": {
+      "post": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Create a group conversation",
+        "description": "Caller becomes OWNER. Member cap configured via `hrms.chat.group-member-cap` (default 50, including caller).",
+        "operationId": "createGroup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Group created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/conversations/dm": {
+      "post": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Get-or-create a 1:1 DM",
+        "description": "Idempotent. Returns the existing DM if one already exists between caller and `otherUserId`.",
+        "operationId": "createOrGetDm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Existing DM returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "New DM created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/broadcast/messages": {
+      "post": {
+        "tags": [
+          "Chat — Broadcast"
+        ],
+        "summary": "Post an announcement to the org-wide broadcast channel",
+        "description": "Caller must hold `chat.broadcast.write`. Live SSE fanout reaches every connected user via the global `chat:broadcast` channel; bell entries are dropped only for users in `mentionedUserIds`.",
+        "operationId": "post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/attachments/upload-url": {
+      "post": {
+        "tags": [
+          "Chat — Attachments"
+        ],
+        "summary": "Mint a pre-signed PUT URL for a chat attachment",
+        "description": "Validates content-type whitelist + size cap. The returned objectKey is bound to the caller's user prefix; only the caller can later attach this object to a message.",
+        "operationId": "uploadUrl",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatUploadUrlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatUploadUrlResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Size exceeds the per-attachment cap.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatUploadUrlResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-type not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatUploadUrlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/messages/{id}": {
+      "delete": {
+        "tags": [
+          "Chat — Messages"
+        ],
+        "summary": "Soft-delete your own message",
+        "operationId": "deleteOwn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Chat — Messages"
+        ],
+        "summary": "Edit your own message",
+        "description": "Allowed within the edit window (default 15 min). 409 outside the window or on a deleted message.",
+        "operationId": "edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the sender.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Edit window expired or message deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/search": {
+      "get": {
+        "tags": [
+          "Chat — Search"
+        ],
+        "summary": "Search messages in a conversation",
+        "description": "Postgres tsvector + GIN under the hood. Multi-word queries are AND-combined; soft-deleted messages are excluded. Response embeds the conversation header so the FE can render thread title without a separate fetch.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultsResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a member of the conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/presence": {
+      "get": {
+        "tags": [
+          "Chat — Presence"
+        ],
+        "summary": "Get presence for a list of users",
+        "description": "Bulk lookup. Caller passes a comma-separated `userIds` query param; server returns one row per id the caller is permitted to see (i.e. the caller themselves plus users they share a conversation with), preserving request order. IDs the caller doesn't share a conversation with are silently omitted to prevent presence enumeration of arbitrary user ids.",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "userIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PresenceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/conversations": {
+      "get": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "List my conversations",
+        "description": "Conversations where I'm a member, ordered by last-message time desc. Includes unread counts and member ids for chip rendering.",
+        "operationId": "mine",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}": {
+      "get": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Conversation header + members",
+        "description": "Returns membership and unread count. Caller must be a member, except for the BROADCAST channel which everyone can fetch.",
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/admin/conversations": {
+      "get": {
+        "tags": [
+          "Chat — Admin"
+        ],
+        "summary": "List a user's conversations (admin)",
+        "description": "Includes the org-wide BROADCAST. Unread counts are reported from the target user's perspective.",
+        "operationId": "listForUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/admin/conversations/{id}": {
+      "get": {
+        "tags": [
+          "Chat — Admin"
+        ],
+        "summary": "Get any conversation header (admin)",
+        "description": "Returns members + unread count from the target user's perspective. Membership is not enforced for the caller.",
+        "operationId": "getForUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "asUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/admin/conversations/{id}/messages": {
+      "get": {
+        "tags": [
+          "Chat — Admin"
+        ],
+        "summary": "Page any conversation's messages (admin)",
+        "description": "Same shape as the regular paged messages endpoint, but skips the membership check. Useful for compliance review.",
+        "operationId": "pageMessages",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "beforeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/messages/{id}/admin": {
+      "delete": {
+        "tags": [
+          "Chat — Messages"
+        ],
+        "summary": "Admin hard-delete (audit-emitting)",
+        "description": "Soft-deletes any message; emits an audit event. Requires `chat.messages.delete`.",
+        "operationId": "deleteAsAdmin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/chat/conversations/{id}/members/{userId}": {
+      "delete": {
+        "tags": [
+          "Chat — Conversations"
+        ],
+        "summary": "Remove a member or leave a group",
+        "description": "Owners can remove anyone; members can remove themselves only. Last owner can't leave a non-empty group.",
+        "operationId": "removeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TypingRequest": {
+        "type": "object",
+        "description": "Fire-and-forget typing signal. The client sends `stopped: true` to clear early; otherwise the indicator self-clears client-side after a short timeout.",
+        "properties": {
+          "stopped": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "True to clear, false (or absent) to indicate typing."
+          }
+        }
+      },
+      "MarkReadRequest": {
+        "type": "object",
+        "description": "Update my last-read pointer for a conversation.",
+        "properties": {
+          "lastReadMessageId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Highest message id I've read in this conversation."
+          }
+        },
+        "required": [
+          "lastReadMessageId"
+        ]
+      },
+      "AttachmentRef": {
+        "type": "object",
+        "description": "Reference to an already-uploaded MinIO object. The server stat()s each before persisting; missing objects yield 422.",
+        "properties": {
+          "objectKey": {
+            "type": "string",
+            "description": "Key returned by /chat/attachments/upload-url.",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "contentType": {
+            "type": "string",
+            "description": "Content-type from the upload-url request.",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size in bytes; the server still verifies against MinIO."
+          },
+          "originalName": {
+            "type": "string",
+            "description": "Original filename for display.",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "contentType",
+          "objectKey",
+          "originalName",
+          "sizeBytes"
+        ]
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "description": "Send a message to a conversation. At least one of body/attachments must be present.",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Message body. Empty string allowed if at least one attachment is present.",
+            "maxLength": 8000,
+            "minLength": 0
+          },
+          "mentionedUserIds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "User ids the client tagged with @mentions. Server validates each is a member.",
+            "example": [
+              203,
+              204
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "attachments": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Attachments to attach to this message. Each must already be uploaded via /chat/attachments/upload-url.",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentRef"
+            }
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "AttachmentDto": {
+        "type": "object",
+        "description": "Stored attachment metadata + a short-lived signed download URL.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "messageId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "originalName": {
+            "type": "string"
+          },
+          "downloadUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived signed download URL."
+          }
+        }
+      },
+      "MessageDto": {
+        "type": "object",
+        "description": "A message within a conversation.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "senderUserId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "senderUsername": {
+            "type": "string",
+            "description": "Sender's auth username, captured at send-time from the audit `created_by` column. Stable for rendering bubble headers / mention chips without a resolver round-trip.",
+            "example": "ahmed.khan"
+          },
+          "body": {
+            "type": "string",
+            "description": "Message body. Empty when soft-deleted (deletedAt is set)."
+          },
+          "editedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deleteReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SELF",
+              "ADMIN"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "description": "Attachments uploaded with this message; each carries a short-lived signed download URL.",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentDto"
+            }
+          },
+          "mentionedUserIds": {
+            "type": "array",
+            "description": "User ids @-mentioned by the sender at send time.",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "AddMemberRequest": {
+        "type": "object",
+        "description": "Add a member to a group conversation.",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "User id to add."
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "CreateGroupRequest": {
+        "type": "object",
+        "description": "Create an ad-hoc group conversation. Caller becomes OWNER.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Group title shown in the conversation list.",
+            "example": "Q3 launch room",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "memberUserIds": {
+            "type": "array",
+            "description": "Initial member user ids (excluding caller — caller is auto-added as OWNER).",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "memberUserIds",
+          "title"
+        ]
+      },
+      "ConversationDto": {
+        "type": "object",
+        "description": "Conversation header. Members and last-message preview included.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "DM",
+              "GROUP",
+              "BROADCAST"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByUser": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastMessageId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastMessageAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "memberUserIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastReadByUser": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Per-member read cursors: userId → lastReadMessageId. Empty for BROADCAST (no member rows; ✓✓ is noisy on org-wide channels). Lets the FE draw `seen by` / blue ticks without an extra fetch."
+          }
+        }
+      },
+      "CreateDmRequest": {
+        "type": "object",
+        "description": "Get-or-create a 1:1 DM with another employee.",
+        "properties": {
+          "otherUserId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "User id of the other participant.",
+            "example": 203
+          }
+        },
+        "required": [
+          "otherUserId"
+        ]
+      },
+      "ChatUploadUrlRequest": {
+        "type": "object",
+        "description": "Request a pre-signed PUT URL for a chat attachment. Server validates the content-type whitelist and size cap before signing.",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "description": "MIME type the client will PUT.",
+            "example": "image/png",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size in bytes the client will PUT. Used to enforce the per-attachment size cap."
+          },
+          "originalName": {
+            "type": "string",
+            "description": "Original filename — preserved on the metadata row.",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "contentType",
+          "originalName",
+          "sizeBytes"
+        ]
+      },
+      "ChatUploadUrlResponse": {
+        "type": "object",
+        "description": "Pre-signed PUT URL for a chat attachment. Pass the returned objectKey back in the next send-message request.",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "description": "Bucket the URL targets.",
+            "example": "chat-attachments"
+          },
+          "objectKey": {
+            "type": "string",
+            "description": "Object key the URL is signed for. Include this in the message's `attachments[]`."
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "Pre-signed PUT URL."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the URL stops working (UTC)."
+          }
+        }
+      },
+      "EditMessageRequest": {
+        "type": "object",
+        "description": "Edit your own message within the edit window (15 minutes).",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "New message body.",
+            "maxLength": 8000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "SearchConversationHeader": {
+        "type": "object",
+        "description": "Lightweight conversation identity — id, title, type — for search-result grouping.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "DM",
+              "GROUP",
+              "BROADCAST"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null for DMs (no group title)."
+          }
+        }
+      },
+      "SearchResultsResponse": {
+        "type": "object",
+        "description": "Search hits inside a single conversation. The conversation header is embedded so the FE can render thread title + type without an extra fetch.",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/SearchConversationHeader",
+            "description": "Conversation header for the searched thread."
+          },
+          "messages": {
+            "type": "array",
+            "description": "Matching messages, newest-first within the configured limit.",
+            "items": {
+              "$ref": "#/components/schemas/MessageDto"
+            }
+          }
+        }
+      },
+      "PresenceDto": {
+        "type": "object",
+        "description": "A user's connection status. `online` means we have a live SSE within the last ~30s; otherwise `offline` with a `lastSeenAt` if known.",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "online | offline"
+          },
+          "lastSeenAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "MessagePageResponse": {
+        "type": "object",
+        "description": "A page of messages for a conversation, newest first. Use the lowest id as `beforeId` to fetch the next older page.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageDto"
+            }
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "True when more older messages exist before the lowest id in `items`."
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Authorization": {
+        "type": "http",
+        "description": "Paste the access token returned from POST /auth/login (without the 'Bearer ' prefix).",
+        "name": "Authorization",
+        "in": "header",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

@@ -1,0 +1,171 @@
+# Jenkins Configuration as Code (JCasC).
+# Source of truth for system-wide config, per host.
+#
+# One Jenkins per VM, deploying only to its own k3s. ENV_NAME, REGISTRY and
+# HOST_IP come from /etc/jenkins.env, written by scripts/07-jenkins-install.sh
+# from .env. They are deliberately given NO defaults: an unresolved variable
+# fails the casc apply loudly, which is far better than a prod controller
+# quietly seeding uat jobs or pushing images to the other VM's registry.
+
+jenkins:
+  systemMessage: "FSHRMS ${ENV_NAME} — managed by JCasC. UI edits get overwritten on restart."
+  numExecutors: 4
+  mode: NORMAL
+  scmCheckoutRetryCount: 2
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${JENKINS_ADMIN_PASSWORD}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  remotingSecurity:
+    enabled: true
+
+  globalNodeProperties:
+    - envVars:
+        env:
+          # This host's own registry. Pipelines read it instead of hardcoding,
+          # so the same Jenkinsfile shape works on both VMs.
+          - key: REGISTRY
+            value: "${REGISTRY}"
+          - key: ENV_NAME
+            value: "${ENV_NAME}"
+          # Git remotes, per host. Pipelines read these instead of hardcoding a
+          # URL, so a host can be repointed without touching ten Jenkinsfiles.
+          - key: GIT_REPO_URL
+            value: "${GIT_REPO_URL}"
+          - key: GIT_WEB_REPO_URL
+            value: "${GIT_WEB_REPO_URL}"
+          # Build JDK. `./mvnw` is only-script — it fetches Maven, never a JDK —
+          # and the Jenkins .deb only pulls in JDK 17, so `build jar` compiled
+          # with --release 21 dies "release version 21 not supported". Point the
+          # build at the 21 JDK installed in HOST-BRINGUP.md §5; Jenkins core
+          # keeps running on whatever JVM systemd started it with.
+          - key: JAVA_HOME
+            value: "/usr/lib/jvm/java-21-openjdk-amd64"
+          - key: PATH+JDK21
+            value: "/usr/lib/jvm/java-21-openjdk-amd64/bin"
+
+unclassified:
+  location:
+    url: "http://${HOST_IP}:8080/"
+    adminAddress: "admin@fshrms.local"
+  timestamper:
+    allPipelines: true
+
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
+
+# JCasC credentials. Files are pre-staged on the host at
+# /etc/jenkins/credentials/ (root:jenkins, mode 600). The configuration-as-code
+# plugin's `${readFile:...}` and `${readFileBase64:...}` interpolators load them
+# at startup; secrets never appear in this manifest.
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          # GitHub clone over SSH. Reuses the user's existing key on the VM —
+          # swap to a per-repo deploy key once a service-account GitHub user
+          # exists. Username 'git' matches GitHub's SSH endpoint expectation.
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: github-ssh
+              username: git
+              description: "GitHub SSH key — clone fshrms-backend"
+              privateKeySource:
+                directEntry:
+                  privateKey: "${readFile:/etc/jenkins/credentials/github_id_ed25519}"
+          # Service-account kubeconfig with `edit` on this host's namespace.
+          # The FILE PATH is fixed and the ENV goes in the credential ID: a
+          # nested `${readFileBase64:...${ENV_NAME}}` is not reliably resolved
+          # by the plugin and would silently expand to empty — the same failure
+          # class as the `${base64File:...}` typo (empty kubeconfig, kubectl
+          # falls back to localhost:8080 and hits Jenkins itself).
+          - file:
+              scope: GLOBAL
+              id: kubeconfig-${ENV_NAME}
+              fileName: kubeconfig
+              description: "k3s kubeconfig — jenkins-deployer SA, ${ENV_NAME} ns, edit role"
+              secretBytes: "${readFileBase64:/etc/jenkins/credentials/kubeconfig}"
+
+# Job DSL — one pipeline per service, for THIS host's environment only. Loops a
+# fixed service list rather than discovering from disk so a missing Jenkinsfile
+# fails the casc apply loudly instead of silently dropping the job.
+jobs:
+  - script: |
+      // This block is a YAML *value*, so JCasC interpolates it BEFORE Groovy
+      // ever runs: the ENV_NAME interpolation below arrives as a plain literal
+      // ('uat' or 'prod'). Everything else uses single-quoted string concat —
+      // a Groovy GString here would be clobbered to empty by that same pre-pass,
+      // and any other dollar-brace token (even in a comment on this line) would
+      // be looked up as a variable and blow up the casc apply.
+      def envName = '${ENV_NAME}'
+      def repoUrl = '${GIT_REPO_URL}'
+      def webRepoUrl = '${GIT_WEB_REPO_URL}'
+      // Prod deploys the `prod` branch and nothing else; UAT tracks main. This
+      // is the ref the Jenkinsfile itself is read from — Jenkinsfile-prod pins
+      // the same branch for the source it builds, so the two cannot drift.
+      def buildBranch = envName == 'prod' ? '*/prod' : '*/main'
+
+      folder(envName) {
+        description(envName == 'prod'
+          ? 'Prod pipelines. Manual trigger only — each builds the head of the `prod` branch into this host registry. No parameters: promote by merging into `prod`, roll back by moving `prod` and re-running.'
+          : 'UAT pipelines per service. Auto-builds on every main push (TODO: webhook); manually triggerable for now.')
+      }
+
+      [
+        'auth', 'audit', 'employee', 'attendance', 'attendance-poller',
+        'payroll', 'notification', 'chat', 'gateway', 'bff'
+      ].each { svc ->
+        pipelineJob(envName + '/' + svc) {
+          description('Build, push, and deploy ' + svc + ' to the ' + envName + ' k3s namespace.')
+          logRotator {
+            numToKeep(3)
+          }
+          definition {
+            cpsScm {
+              scm {
+                git {
+                  remote {
+                    url(repoUrl)
+                    credentials('github-ssh')
+                  }
+                  branches(buildBranch)
+                }
+              }
+              scriptPath('services/' + svc + '/Jenkinsfile-' + envName)
+            }
+          }
+        }
+      }
+
+      // Frontend lives in its own repo (fshrms-frontend) — different SCM URL,
+      // so it can't slot into the loop above. Same job shape: `<env>/web` reads
+      // its Jenkinsfile from the frontend repo's root.
+      pipelineJob(envName + '/web') {
+        description('Build, push, and deploy the React frontend (web) to the ' + envName + ' k3s namespace.')
+        logRotator {
+          numToKeep(3)
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url(webRepoUrl)
+                  credentials('github-ssh')
+                }
+                branches(buildBranch)
+              }
+            }
+            scriptPath('Jenkinsfile-' + envName)
+          }
+        }
+      }

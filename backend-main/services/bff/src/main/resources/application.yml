@@ -1,0 +1,83 @@
+spring:
+  application:
+    name: bff
+  threads:
+    # Tomcat serves each request on a virtual thread. The fan-out
+    # composites use a separate virtual-thread executor (see BffConfig)
+    # so the request thread can wait on N parallel downstream calls.
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    # Needed only for the commons-cache employee-events consumer. The BFF
+    # has no producer of its own.
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+  # BFF owns no persistence, but commons-core transitively brings JPA /
+  # JDBC / Flyway autoconfigs onto the classpath. Switch them off so no
+  # Hikari pool is started. (SB4 moved these autoconfigs into per-feature
+  # jars — note the package paths.)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+
+server:
+  port: 8086
+
+hrms:
+  openapi:
+    title: Spirit of Islam School HRMS — BFF API
+    description: |
+      Backend-for-Frontend composites for the web app. Each endpoint
+      assembles one page worth of data from the underlying services
+      (auth, audit, employee). The BFF owns no persistent state.
+      Calls go through the gateway at :8080 — try-it-out below exercises
+      the real ingress (CORS, JWT validation, identity injection).
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  bff:
+    downstream:
+      auth:
+        base-url: ${AUTH_BASE_URL:http://localhost:8081}
+      audit:
+        base-url: ${AUDIT_BASE_URL:http://localhost:8085}
+      employee:
+        base-url: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+      attendance:
+        base-url: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+      payroll:
+        base-url: ${PAYROLL_BASE_URL:http://localhost:8087}
+      chat:
+        base-url: ${CHAT_BASE_URL:http://localhost:8088}
+  cache:
+    # commons-cache (Redis) — employee display + employee-service catalogs.
+    # The miss path uses employee-service-url; same value as
+    # hrms.bff.downstream.employee.base-url, repeated here so commons-cache
+    # stays self-contained (it doesn't read BFF properties).
+    enabled: true
+    employee-service-url: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+  outbox:
+    # commons-cache pulls commons-employee-events → commons-kafka transitively,
+    # which puts OutboxAutoConfiguration on the classpath. The autoconfig is
+    # gated on @ConditionalOnClass(KafkaTemplate, jakarta.persistence.Entity)
+    # — both are present here — and defaults to enabled. BFF owns no JPA,
+    # so the outbox JPA-repo wiring blows up at startup. Disable it
+    # explicitly. (Same shape as the BFF integration tests already used.)
+    enabled: false
+    notifications:
+      stream:
+        # SseEmitter timeout. Browsers reconnect on close, so keeping this
+        # bounded means a stuck connection is reaped within ~10 min instead
+        # of pinning a thread + Redis listener forever. The client's
+        # EventSource auto-reconnects on EOF. Heartbeat comment cadence is
+        # fixed in NotificationStreamService at 15 s.
+        timeout: 10m

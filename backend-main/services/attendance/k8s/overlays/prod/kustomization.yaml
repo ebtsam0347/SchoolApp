@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - sealed-secret.yaml
+
+configMapGenerator:
+  - name: attendance-config
+    behavior: merge
+    literals:
+      - HRMS_OPENAPI_SERVER_URL=https://hrms.forward.pk/api
+      - DB_NAME=prod
+      - DB_HOST=10.10.100.51
+      - REDIS_HOST=10.10.100.51
+      - KAFKA_BROKERS=10.10.100.51:9092
+      - MINIO_ENDPOINT=http://10.10.100.51:9000
+
+images:
+  - name: attendance
+    newName: 10.10.100.51:5001/attendance
+    newTag: "GIT_SHA_PLACEHOLDER"
+
+patches:
+  - path: deployment-patch.yaml

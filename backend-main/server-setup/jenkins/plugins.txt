@@ -1,0 +1,38 @@
+# Pinned plugin set. jenkins-plugin-cli resolves "latest" against the current
+# update-center. To freeze a version at scale, replace `<name>` with `<name>:<ver>`.
+
+# JCasC + auth
+configuration-as-code
+matrix-auth
+
+# Pipeline core
+workflow-aggregator
+pipeline-utility-steps
+pipeline-stage-view
+
+# SCM
+git
+git-client
+ssh-credentials
+
+# Credentials handling
+credentials
+credentials-binding
+
+# Container + k8s
+docker-workflow
+kubernetes
+kubernetes-cli
+
+# Job DSL (for the future seed job)
+job-dsl
+
+# Folders — used by JCasC seed to namespace `uat/<svc>` vs `prod/<svc>`.
+cloudbees-folder
+
+# QoL
+timestamper
+ansicolor
+ws-cleanup
+build-timeout
+ssh-agent

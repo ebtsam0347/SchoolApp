@@ -1,0 +1,2 @@
+ALTER TABLE employee_salary_components
+DROP COLUMN pay_with_salary;

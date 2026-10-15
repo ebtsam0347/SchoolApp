@@ -1,0 +1,80 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: auth
+  labels:
+    app: auth
+    release: kps
+spec:
+  groups:
+    - name: auth.slo
+      rules:
+        # 5xx rate above 5% for 5m — most likely to surface real bugs.
+        - alert: AuthHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="auth",status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="auth"}[5m]))
+              > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: auth
+          annotations:
+            summary: "auth 5xx rate > 5% (ns {{ $labels.namespace }})"
+            description: "5xx rate is {{ $value | humanizePercentage }} over the last 5m."
+
+        # No instances scraping at all — pod gone or mgmt port down.
+        - alert: AuthDown
+          expr: up{job="auth"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: auth
+          annotations:
+            summary: "auth is down (ns {{ $labels.namespace }})"
+            description: "No Prometheus targets for auth are reporting up=1 for 2 minutes."
+
+        # p95 above 1s sustained — pre-incident latency signal.
+        - alert: AuthHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, le) (rate(http_server_requests_seconds_bucket{app="auth"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            service: auth
+          annotations:
+            summary: "auth p95 latency > 1s (ns {{ $labels.namespace }})"
+            description: "p95 latency is {{ $value | humanizeDuration }} over the last 5m, sustained 10m."
+
+        # Heap pool used > 90% of committed for 10m — about to OOM, GC thrashing soon.
+        - alert: AuthJvmHeapPressure
+          expr: |
+            sum by (namespace, pod) (jvm_memory_used_bytes{app="auth",area="heap"})
+              /
+            sum by (namespace, pod) (jvm_memory_committed_bytes{app="auth",area="heap"})
+              > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            service: auth
+          annotations:
+            summary: "auth JVM heap > 90% on {{ $labels.pod }}"
+            description: "Heap used / committed is {{ $value | humanizePercentage }} for 10m. Consider raising memory limits or investigating a leak."
+
+        # HikariCP threads waiting on a connection — DB pool starvation.
+        # Fires only on services with a DataSource (auth/audit/employee/
+        # attendance/payroll/notification/chat). Gateway/bff have no metric
+        # so the rule silently no-ops.
+        - alert: AuthHikariConnectionStarvation
+          expr: |
+            max by (namespace, pod) (hikaricp_connections_pending{app="auth"}) > 0
+          for: 5m
+          labels:
+            severity: warning
+            service: auth
+          annotations:
+            summary: "auth DB pool starved on {{ $labels.pod }}"
+            description: "{{ $value }} thread(s) waiting for a HikariCP connection for 5m. Tune pool size or investigate slow queries."

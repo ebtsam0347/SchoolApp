@@ -1,0 +1,646 @@
+/*
+ * Public visitor page. Hero + check-in sidebar always use the Spirit crest
+ * palette (navy / royal blue / gold) so the page looks branded under every
+ * theme; the content sections follow the active AntD theme tokens.
+ */
+
+.visit-page {
+  --visit-navy: #0c1e52;
+  --visit-navy-2: #132a68;
+  --visit-blue: #1d47b8;
+  --visit-blue-2: #2f6bd8;
+  --visit-gold: #e8c25a;
+  --visit-gold-2: #d4a93c;
+
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* ---------- Header ---------- */
+.visit-header {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(1160px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 999px;
+  background: rgba(12, 30, 82, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(12, 30, 82, 0.25);
+}
+
+.visit-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 650;
+  font-size: 15px;
+  text-decoration: none;
+  min-width: 0;
+}
+.visit-brand img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+  padding: 2px;
+}
+.visit-brand span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visit-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.visit-nav > a {
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+.visit-nav > a:hover {
+  color: var(--visit-gold);
+}
+.visit-nav .visit-nav-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--visit-navy);
+  font-weight: 600;
+}
+.visit-nav .visit-nav-login:hover {
+  color: var(--visit-blue);
+}
+
+@media (max-width: 720px) {
+  .visit-nav > a:not(.visit-nav-login) {
+    display: none;
+  }
+  .visit-brand span {
+    font-size: 13px;
+  }
+}
+
+/* ---------- Hero ---------- */
+.visit-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 140px 24px 96px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse 60% 70% at 0% 0%, rgba(47, 107, 216, 0.55), transparent 65%),
+    radial-gradient(ellipse 50% 60% at 100% 100%, rgba(212, 169, 60, 0.28), transparent 60%),
+    linear-gradient(160deg, var(--visit-navy) 0%, var(--visit-navy-2) 55%, #0a1640 100%);
+}
+.visit-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+}
+
+.visit-hero-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  right: -120px;
+  top: -140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 194, 90, 0.25), transparent 70%);
+  filter: blur(10px);
+  z-index: -1;
+  animation: visit-float 9s ease-in-out infinite;
+}
+
+.visit-hero-crest {
+  position: absolute;
+  right: max(24px, calc((100% - 1160px) / 2));
+  top: 50%;
+  width: clamp(220px, 28vw, 380px);
+  transform: translateY(-40%);
+  opacity: 0.95;
+  /* The crest PNG has an opaque square background; fade its edges out. */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 52%, transparent 70%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 52%, transparent 70%);
+  animation: visit-float 7s ease-in-out infinite;
+  z-index: -1;
+}
+@media (max-width: 960px) {
+  .visit-hero-crest {
+    opacity: 0.12;
+    width: 320px;
+    right: -60px;
+  }
+}
+
+.visit-hero-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  animation: visit-rise 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.visit-hero-inner > * {
+  max-width: 640px;
+}
+
+.visit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--visit-gold);
+  background: rgba(232, 194, 90, 0.12);
+  border: 1px solid rgba(232, 194, 90, 0.35);
+}
+
+.visit-hero h1 {
+  margin: 20px 0 16px;
+  font-size: clamp(34px, 5.4vw, 60px);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.visit-hero-accent {
+  background: linear-gradient(90deg, var(--visit-gold) 0%, #f6dd94 50%, var(--visit-gold-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.visit-hero p {
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0;
+}
+
+.visit-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.visit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.visit-btn:hover {
+  transform: translateY(-2px);
+}
+.visit-btn-gold {
+  color: var(--visit-navy);
+  background: linear-gradient(135deg, #f3d47c, var(--visit-gold-2));
+  box-shadow: 0 10px 28px rgba(212, 169, 60, 0.4);
+}
+.visit-btn-gold:hover {
+  color: var(--visit-navy);
+  box-shadow: 0 14px 34px rgba(212, 169, 60, 0.55);
+}
+.visit-btn-ghost {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+.visit-btn-ghost:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.visit-hero-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 48px;
+  max-width: 760px !important;
+}
+.visit-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+}
+.visit-chip-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--visit-gold);
+  background: rgba(232, 194, 90, 0.14);
+}
+.visit-chip small {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.visit-chip strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ---------- Sections ---------- */
+.visit-section {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 88px 24px 0;
+  scroll-margin-top: 80px;
+}
+@media (max-width: 600px) {
+  .visit-section {
+    padding: 64px 16px 0;
+  }
+  .visit-hero {
+    padding: 120px 16px 72px;
+  }
+}
+
+.visit-section-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+.visit-section-head h2 {
+  margin: 8px 0 10px;
+  font-size: clamp(26px, 3.4vw, 38px);
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+.visit-section-head p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.visit-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--visit-blue);
+}
+:root[data-theme='graphite'] .visit-eyebrow,
+:root[data-theme='tokyo-night'] .visit-eyebrow {
+  color: var(--visit-gold);
+}
+.visit-eyebrow-light {
+  color: var(--visit-gold) !important;
+}
+
+.visit-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+@media (max-width: 1000px) {
+  .visit-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .visit-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.visit-card {
+  position: relative;
+  padding: 26px 24px;
+  border-radius: 20px;
+  border: 1px solid;
+  transition: transform 0.22s, box-shadow 0.22s;
+}
+.visit-card::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--visit-blue), var(--visit-gold));
+  opacity: 0;
+  transition: opacity 0.22s;
+}
+.visit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(12, 30, 82, 0.12);
+}
+.visit-card:hover::before {
+  opacity: 1;
+}
+.visit-card-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--visit-blue), var(--visit-blue-2));
+  box-shadow: 0 8px 20px rgba(29, 71, 184, 0.3);
+}
+.visit-card h3 {
+  margin: 18px 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.visit-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---------- Check-in ---------- */
+.visit-checkin {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 30px 70px rgba(12, 30, 82, 0.16);
+}
+@media (max-width: 880px) {
+  .visit-checkin {
+    grid-template-columns: 1fr;
+  }
+}
+
+.visit-checkin-side {
+  position: relative;
+  padding: 40px 32px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(232, 194, 90, 0.22), transparent 60%),
+    linear-gradient(160deg, var(--visit-blue) 0%, var(--visit-navy) 100%);
+}
+.visit-checkin-side h2 {
+  margin: 8px 0 8px;
+  font-size: 30px;
+  font-weight: 750;
+  color: #fff;
+}
+.visit-checkin-side > p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.6;
+}
+
+.visit-steps {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+  display: grid;
+  gap: 14px;
+}
+.visit-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 550;
+}
+.visit-steps li span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--visit-navy);
+  background: var(--visit-gold);
+}
+
+.visit-side-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.visit-checkin-main {
+  padding: 36px 32px;
+}
+@media (max-width: 600px) {
+  .visit-checkin-side,
+  .visit-checkin-main {
+    padding: 28px 20px;
+  }
+}
+
+.visit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+@media (max-width: 600px) {
+  .visit-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Pass ---------- */
+.visit-pass-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: visit-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.visit-pass {
+  position: relative;
+  width: min(380px, 100%);
+  padding: 22px;
+  border-radius: 22px;
+  color: #fff;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(232, 194, 90, 0.3), transparent 60%),
+    linear-gradient(155deg, var(--visit-blue) 0%, var(--visit-navy) 100%);
+  box-shadow: 0 24px 50px rgba(12, 30, 82, 0.35);
+}
+.visit-pass::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--visit-gold-2), #f6dd94, var(--visit-gold-2));
+}
+.visit-pass-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.visit-pass-top img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 2px;
+  object-fit: contain;
+}
+.visit-pass-top strong {
+  display: block;
+  font-size: 14px;
+}
+.visit-pass-top small {
+  color: rgba(255, 255, 255, 0.7);
+}
+.visit-pass-badge {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--visit-navy);
+  background: var(--visit-gold);
+}
+.visit-pass-name {
+  margin-top: 26px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  word-break: break-word;
+}
+.visit-pass-no {
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--visit-gold);
+}
+.visit-pass-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 22px 0 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.visit-pass-grid dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.visit-pass-grid dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+.visit-pass-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  padding-bottom: 4px;
+}
+.visit-pass-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---------- Footer ---------- */
+.visit-footer {
+  text-align: center;
+  font-size: 13px;
+  padding: 64px 16px 32px;
+}
+
+/* ---------- Motion ---------- */
+@keyframes visit-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes visit-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .visit-page *,
+  .visit-page *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- Print: only the pass ---------- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #visitor-pass,
+  #visitor-pass * {
+    visibility: visible;
+  }
+  #visitor-pass {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

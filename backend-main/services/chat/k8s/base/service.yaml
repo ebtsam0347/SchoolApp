@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat
+  labels:
+    app: chat
+spec:
+  selector:
+    app: chat
+  ports:
+    - name: app
+      port: 8088
+      targetPort: app
+    - name: mgmt
+      port: 9090
+      targetPort: mgmt

@@ -1,0 +1,105 @@
+/* Base reset + typography. AntD provides most resets; this layer adds
+   font import and a few project-wide base rules. */
+
+@import url('https://rsms.me/inter/inter.css');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+  /* Inherit text color from AntD ConfigProvider so orphan text never falls back to UA default. */
+  color: var(--ant-color-text);
+}
+
+/* Buttons don't inherit color from the cascade by default; opt in so we can rely on
+   parent color in component code. Without this, ThemeSwitcher rows and other transparent
+   <button> elements render text in the user-agent ButtonText color. */
+button {
+  color: inherit;
+  font-family: inherit;
+}
+
+/* Text selection — UA defaults wash out on light surfaces and barely register on dark.
+   Each theme sets --app-selection-bg/-fg as a guaranteed-contrast pair (see themes.css). */
+::selection {
+  background-color: var(--app-selection-bg);
+  color: var(--app-selection-fg);
+}
+::-moz-selection {
+  background-color: var(--app-selection-bg);
+  color: var(--app-selection-fg);
+}
+
+/* Tabular numerals on tables, money, timestamps. */
+table,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide native scrollbars on the sidebar mid-zone. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mobile safety caps.
+
+   These are the only rules in the project that target AntD's own class
+   names — everything else styles through tokens or component props. They
+   earn the exception by closing a whole class of overflow in one place
+   instead of at every call site, and by covering components added later:
+
+   - Modal `width` is a fixed pixel value in AntD and does not shrink. This
+     app declares modals from 520px up to 980px, so the widest overflowed a
+     ~390px phone by roughly 600px. The cap keeps the declared width
+     whenever it fits and falls back to the viewport when it doesn't.
+   - Segmented lays its options out in a single non-wrapping row, so a long
+     status filter drags the page sideways. Let it scroll within itself
+     rather than pushing its container. */
+.ant-modal {
+  max-width: calc(100vw - 32px);
+}
+
+.ant-segmented {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Tone-aware focus ring for card-shaped anchors and buttons that don't
+   carry AntD's built-in focus styling. Used by chart cards, saga cards,
+   and HorizontalBars rows when those wrap in <a> for navigation. */
+.fs-focus-ring:focus-visible {
+  outline: 2px solid var(--ant-color-primary-border);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

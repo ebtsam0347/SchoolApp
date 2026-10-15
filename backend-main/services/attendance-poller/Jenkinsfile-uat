@@ -1,0 +1,84 @@
+// attendance-poller-uat pipeline. Python image, no Maven step. Builds
+// directly off services/attendance-poller/Dockerfile (build context =
+// that dir) and ships hostNetwork: true so the pod sees the office LAN
+// from the VM's IP — biometric devices whitelist the source.
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+  }
+
+  environment {
+    SERVICE   = 'attendance-poller'
+    REGISTRY  = '10.10.100.50:5001'
+    NAMESPACE = 'uat'
+  }
+
+  stages {
+    stage('checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHORT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.IMAGE = "${REGISTRY}/${SERVICE}:${GIT_SHORT_SHA}"
+          echo "Building ${IMAGE}"
+        }
+      }
+    }
+
+    stage('docker build + push') {
+      steps {
+        // Build context is the poller dir — the multistage Dockerfile
+        // there does the uv sync. No Maven, no Dockerfile.service.
+        dir("services/${SERVICE}") {
+          sh '''
+            docker build -t ${IMAGE} .
+            docker push ${IMAGE}
+          '''
+        }
+      }
+    }
+
+    stage('kustomize set image + apply') {
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-uat', variable: 'KUBECONFIG')]) {
+          sh '''
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get ns ${NAMESPACE}
+          '''
+          dir("services/${SERVICE}/k8s/overlays/uat") {
+            // sed of the placeholder — same reasoning as the Java pipelines:
+            // `kustomize edit set image` mishandles host:port/name:tag URLs.
+            sh '''
+              sed -i "s|GIT_SHA_PLACEHOLDER|${GIT_SHORT_SHA}|" kustomization.yaml
+              echo "--- rendered image ---"
+              kustomize build . | grep -E '^[[:space:]]+image:' | head -3
+              kustomize build . | kubectl --kubeconfig="$KUBECONFIG" apply -f -
+            '''
+          }
+          sh '''
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} rollout status deploy/${SERVICE} --timeout=300s
+            kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} get pods -l app=${SERVICE} -o wide
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "${SERVICE} ${GIT_SHORT_SHA} deployed to ${NAMESPACE}"
+    }
+    failure {
+      withCredentials([file(credentialsId: 'kubeconfig-uat', variable: 'KUBECONFIG')]) {
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} describe deploy/${SERVICE} || true'
+        sh 'kubectl --kubeconfig="$KUBECONFIG" -n ${NAMESPACE} logs -l app=${SERVICE} --tail=200 || true'
+      }
+    }
+  }
+}

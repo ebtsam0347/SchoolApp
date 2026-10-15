@@ -1,0 +1,25 @@
+package com.forward.hrms.auth.enums;
+
+import com.forward.hrms.commons.core.error.ErrorCode;
+
+public enum AuthErrorCode implements ErrorCode {
+    INVALID_CREDENTIALS,
+    USER_DISABLED,
+    USER_LOCKED,
+    USER_NOT_FOUND,
+    USERNAME_TAKEN,
+    EMAIL_TAKEN,
+    SESSION_NOT_FOUND,
+    REFRESH_INVALID,
+    PASSWORD_MISMATCH,
+    PASSWORD_TOO_SHORT,
+    EMPLOYEE_LINKED_NAME_READONLY,
+    EMPLOYEE_LINKED_EMAIL_READONLY,
+    ROLE_NOT_FOUND,
+    ROLE_CODE_TAKEN,
+    ROLE_IN_USE,
+    ROLE_SYSTEM_LOCKED,
+    PERMISSION_NOT_FOUND,
+    PW_CHANGE_REQUIRED,
+    LAST_ADMIN_PROTECTED
+}

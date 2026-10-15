@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.forward.hrms</groupId>
+    <artifactId>services</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>fshrms</name>
+    <description>Forward Sports HRMS — multi-module monorepo</description>
+
+    <modules>
+        <module>commons</module>
+        <module>api</module>
+        <module>auth</module>
+        <module>audit</module>
+        <module>employee</module>
+        <module>attendance</module>
+        <module>payroll</module>
+        <module>notification</module>
+        <module>chat</module>
+        <module>gateway</module>
+        <module>bff</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <archunit.version>1.3.0</archunit.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <minio.version>8.5.17</minio.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <jasperreports.version>6.21.3</jasperreports.version>
+        <poi.version>5.4.0</poi.version>
+        <!--
+          springdoc 3.x is the Spring Boot 4 / Spring Framework 7 / Jackson 3
+          line (2.x targets Spring Boot 3). Staying on 2.x under SB4 dragged
+          in a mismatched swagger-core-v3 family — the BOM forced
+          swagger-annotations to 2.2.47 (whose @Schema.defaultValue() defaults
+          to the "##default" sentinel) while springdoc shipped swagger-core
+          2.2.36, which left "##default" leaking into the generated spec.
+          3.0.3 brings its own internally-consistent swagger family, so no
+          swagger-core pin is needed here.
+        -->
+        <springdoc.version>3.0.3</springdoc.version>
+        <!-- Oakwood — built on Spring Boot 4 / Spring Framework 7. -->
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
+        <!--
+          Tracing stack. Versions chosen to line up with Spring Boot 4.0.x;
+          bumped if Spring Boot's own micrometer-tracing version moves ahead.
+        -->
+        <micrometer-tracing.version>1.6.0</micrometer-tracing.version>
+        <opentelemetry.version>1.46.0</opentelemetry.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- internal commons modules -->
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-kafka</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-saga</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-storage</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-batch</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-employee-events</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-reports</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-cache</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-test</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>commons-approval</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Shared response-DTO contract per §11.1 (one module instead
+                 of one per service: this codebase is single-team, lockstep
+                 deploys). Consumers import records under
+                 com.forward.hrms.<svc>.dto.response.*. Service-side mappers
+                 from JPA entities to these records live in each service's
+                 own dto/response package as XxxDtoMapper companions. -->
+            <dependency>
+                <groupId>com.forward.hrms</groupId>
+                <artifactId>api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- external libs Spring Boot doesn't pin -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!--
+              Observability BOMs. micrometer-tracing-bom and opentelemetry-bom
+              are NOT pulled in transitively by spring-boot-dependencies — they
+              must be imported here so commons-web can declare unversioned
+              tracing-bridge-otel + exporter-zipkin.
+            -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-tracing-bom</artifactId>
+                <version>${micrometer-tracing.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>net.sf.jasperreports</groupId>
+                <artifactId>jasperreports</artifactId>
+                <version>${jasperreports.version}</version>
+            </dependency>
+
+            <!--
+              Apache POI for streaming Excel exports (SXSSFWorkbook). Used
+              by payroll's pay register and any other Excel report that
+              may exceed ~2k rows. Spring Boot doesn't pin POI.
+            -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+
+            <!--
+              ArchUnit drives the §5 doctrine bans (Money divide, ZoneId,
+              ObjectMapper, Long money fields). Lives in commons-test so
+              every service's test suite inherits the rules.
+            -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                        <goals><goal>compile</goal></goals>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-configuration-processor</artifactId>
+                                </path>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                </path>
+                                <path>
+                                    <groupId>org.mapstruct</groupId>
+                                    <artifactId>mapstruct-processor</artifactId>
+                                    <version>${mapstruct.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals><goal>testCompile</goal></goals>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

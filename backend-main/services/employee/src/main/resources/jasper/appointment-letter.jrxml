@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Appointment letter — Forward Sports' form layout (A4 portrait, one page):
+  letterhead with double rule, navy title bar, ref/date, job type + photo,
+  appointment paragraph, side-by-side "Personal Information" / "Official
+  Information" panels (navy headers, hairline row rules, zebra rows),
+  three centred signature columns.
+
+  Data contract: AppointmentLetterService (+ LetterSettingsService for the
+  letterhead/footer parameters). Each detail row is one line of both panels:
+  pl/pv = personal label/value, ol/ov = official label/value; $F{last}
+  closes the panel boxes. The paragraph is styled markup (bold spans are
+  pre-built and XML-escaped by the service).
+
+  Fonts: SansSerif with explicit pdfFontName. No font extension is
+  registered, so without pdfFontName="Helvetica-Bold" bold text exports as
+  regular Helvetica. Never size 13 (drops text in this environment).
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="appointment-letter" pageWidth="595" pageHeight="842"
+              columnWidth="535" leftMargin="30" rightMargin="30" topMargin="28" bottomMargin="24"
+              uuid="9c5c3d36-1234-4abc-8000-000000000050">
+
+    <!-- Zebra striping on the panel rows; REPORT_COUNT is 1-based. -->
+    <style name="label" forecolor="#2B2B2B" fontName="SansSerif" fontSize="8" isBold="true" pdfFontName="Helvetica-Bold">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F2F4F8"/>
+        </conditionalStyle>
+    </style>
+    <style name="value" forecolor="#000000" fontName="SansSerif" fontSize="8" pdfFontName="Helvetica">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F2F4F8"/>
+        </conditionalStyle>
+    </style>
+
+    <!-- Letterhead / footer (LetterSettingsService) -->
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="companyContact" class="java.lang.String"/>
+    <parameter name="companyLogo"    class="java.io.InputStream"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+
+    <!-- Letter -->
+    <parameter name="reportTitle"  class="java.lang.String"/>
+    <parameter name="refNo"        class="java.lang.String"/>
+    <parameter name="letterDate"   class="java.lang.String"/>
+    <parameter name="employeeCode" class="java.lang.String"/>
+    <parameter name="jobType"      class="java.lang.String"/>
+    <parameter name="photo"        class="java.io.InputStream"/>
+    <parameter name="paragraph"    class="java.lang.String"/>
+    <parameter name="sig1Title" class="java.lang.String"/>
+    <parameter name="sig1Sub"   class="java.lang.String"/>
+    <parameter name="sig2Title" class="java.lang.String"/>
+    <parameter name="sig2Sub"   class="java.lang.String"/>
+    <parameter name="sig3Title" class="java.lang.String"/>
+    <parameter name="sig3Sub"   class="java.lang.String"/>
+
+    <field name="pl"    class="java.lang.String"/>
+    <field name="pv"    class="java.lang.String"/>
+    <field name="ol"    class="java.lang.String"/>
+    <field name="ov"    class="java.lang.String"/>
+    <field name="first" class="java.lang.Boolean"/>
+    <field name="last"  class="java.lang.Boolean"/>
+
+    <title>
+        <band height="240" splitType="Stretch">
+            <!-- Letterhead -->
+            <image scaleImage="RetainShape" hAlign="Left" vAlign="Middle" onErrorType="Blank">
+                <reportElement x="0" y="0" width="80" height="46">
+                    <printWhenExpression><![CDATA[$P{companyLogo} != null]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{companyLogo}]]></imageExpression>
+            </image>
+            <textField isBlankWhenNull="true">
+                <reportElement x="90" y="4" width="445" height="24" forecolor="#1F2A44"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="18" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="90" y="29" width="445" height="11" forecolor="#4A4A4A"/>
+                <textElement><font fontName="SansSerif" size="7" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[($P{companyAddress} == null ? "" : $P{companyAddress})
+                    + ($P{companyContact} == null ? "" : " (" + $P{companyContact} + ")")]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="50" width="535" height="1" forecolor="#1F2A44"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <line>
+                <reportElement x="0" y="53" width="535" height="1" forecolor="#1F2A44"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+
+            <!-- Title bar -->
+            <textField>
+                <reportElement mode="Opaque" x="0" y="64" width="535" height="24" forecolor="#FFFFFF" backcolor="#1F2A44"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="14" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{reportTitle} == null ? "Appointment Letter" : $P{reportTitle}]]></textFieldExpression>
+            </textField>
+
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="93" width="300" height="12" forecolor="#2B2B2B"/>
+                <textElement markup="styled"><font fontName="SansSerif" size="8" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA["<style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">Ref:</style> " + $P{refNo}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="300" y="93" width="235" height="12" forecolor="#2B2B2B"/>
+                <textElement markup="styled" textAlignment="Right"><font fontName="SansSerif" size="8" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA["<style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">Date:</style> " + $P{letterDate}]]></textFieldExpression>
+            </textField>
+
+            <!-- Job type + photo -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="132" width="445" height="16" forecolor="#000000"/>
+                <textElement markup="styled" textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="10" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA["<style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">Employee Job Type:</style> "
+                    + ($P{jobType} == null ? "" : $P{jobType})]]></textFieldExpression>
+            </textField>
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle" onErrorType="Blank">
+                <reportElement x="455" y="110" width="80" height="84">
+                    <printWhenExpression><![CDATA[$P{photo} != null]]></printWhenExpression>
+                </reportElement>
+                <box><pen lineWidth="0.75" lineColor="#1F2A44"/></box>
+                <imageExpression><![CDATA[$P{photo}]]></imageExpression>
+            </image>
+            <staticText>
+                <reportElement x="455" y="110" width="80" height="84" forecolor="#8A8A8A">
+                    <printWhenExpression><![CDATA[$P{photo} == null]]></printWhenExpression>
+                </reportElement>
+                <box><pen lineWidth="0.5" lineStyle="Dashed" lineColor="#8A8A8A"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7" pdfFontName="Helvetica"/></textElement>
+                <text><![CDATA[Photo]]></text>
+            </staticText>
+
+            <!-- Appointment paragraph -->
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement positionType="Float" x="0" y="202" width="535" height="30" forecolor="#000000"/>
+                <textElement markup="styled" textAlignment="Justified"><font fontName="SansSerif" size="10" pdfFontName="Helvetica"/><paragraph lineSpacing="1_1_2"/></textElement>
+                <textFieldExpression><![CDATA[$P{paragraph}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="26">
+            <staticText>
+                <reportElement mode="Opaque" x="0" y="6" width="262" height="20" forecolor="#FFFFFF" backcolor="#1F2A44"/>
+                <box leftPadding="8"><pen lineWidth="0.75" lineColor="#1F2A44"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Personal Information:]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="273" y="6" width="262" height="20" forecolor="#FFFFFF" backcolor="#1F2A44"/>
+                <box leftPadding="8"><pen lineWidth="0.75" lineColor="#1F2A44"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Official Information:]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Prevent">
+            <!-- Personal panel -->
+            <textField isBlankWhenNull="true">
+                <reportElement style="label" stretchType="RelativeToTallestObject" x="0" y="0" width="105" height="16"/>
+                <box leftPadding="8" topPadding="3"><leftPen lineWidth="0.75" lineColor="#1F2A44"/><bottomPen lineWidth="0.25" lineColor="#C9CFD8"/></box>
+                <textFieldExpression><![CDATA[$F{pl}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="value" stretchType="RelativeToTallestObject" x="105" y="0" width="157" height="16"/>
+                <box leftPadding="2" topPadding="3" rightPadding="6" bottomPadding="2"><bottomPen lineWidth="0.25" lineColor="#C9CFD8"/><rightPen lineWidth="0.75" lineColor="#1F2A44"/></box>
+                <textFieldExpression><![CDATA[$F{pv}]]></textFieldExpression>
+            </textField>
+            <!-- Official panel -->
+            <textField isBlankWhenNull="true">
+                <reportElement style="label" stretchType="RelativeToTallestObject" x="273" y="0" width="112" height="16"/>
+                <box leftPadding="8" topPadding="3"><leftPen lineWidth="0.75" lineColor="#1F2A44"/><bottomPen lineWidth="0.25" lineColor="#C9CFD8"/></box>
+                <textFieldExpression><![CDATA[$F{ol}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="value" stretchType="RelativeToTallestObject" x="385" y="0" width="150" height="16"/>
+                <box leftPadding="2" topPadding="3" rightPadding="6" bottomPadding="2"><bottomPen lineWidth="0.25" lineColor="#C9CFD8"/><rightPen lineWidth="0.75" lineColor="#1F2A44"/></box>
+                <textFieldExpression><![CDATA[$F{ov}]]></textFieldExpression>
+            </textField>
+            <!-- Close both boxes on the last row -->
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="15" width="262" height="1" forecolor="#1F2A44">
+                    <printWhenExpression><![CDATA[Boolean.TRUE.equals($F{last})]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </line>
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="273" y="15" width="262" height="1" forecolor="#1F2A44">
+                    <printWhenExpression><![CDATA[Boolean.TRUE.equals($F{last})]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </line>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="14">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="455" height="11" forecolor="#8A8A8A"/>
+                <textElement><font fontName="SansSerif" size="6" isItalic="true" pdfFontName="Helvetica-Oblique"/></textElement>
+                <textFieldExpression><![CDATA["System-generated by FS-HRMS on " + $P{generatedAt} + " by " + $P{generatedBy}
+                    + "   ·   Ref: " + $P{refNo}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="455" y="2" width="55" height="11" forecolor="#8A8A8A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="6" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="510" y="2" width="25" height="11" forecolor="#8A8A8A"/>
+                <textElement><font fontName="SansSerif" size="6" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <!-- Signature row: three equal columns, line + title centred in each. Prevent keeps it on one page. -->
+    <summary>
+        <band height="96" splitType="Prevent">
+            <line>
+                <reportElement x="10" y="60" width="130" height="1" forecolor="#1F2A44"/>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="64" width="150" height="11" forecolor="#000000"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig1Title}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="75" width="150" height="11" forecolor="#4A4A4A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig1Sub}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="202" y="60" width="130" height="1" forecolor="#1F2A44">
+                    <printWhenExpression><![CDATA[$P{sig2Title} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="192" y="64" width="150" height="11" forecolor="#000000"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig2Title}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="192" y="75" width="150" height="11" forecolor="#4A4A4A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig2Sub}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="395" y="60" width="130" height="1" forecolor="#1F2A44">
+                    <printWhenExpression><![CDATA[$P{sig3Title} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="385" y="64" width="150" height="11" forecolor="#000000"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig3Title}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="385" y="75" width="150" height="11" forecolor="#4A4A4A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[$P{sig3Sub}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

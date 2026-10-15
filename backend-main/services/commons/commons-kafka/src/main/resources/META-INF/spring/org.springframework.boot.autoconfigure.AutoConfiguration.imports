@@ -1,0 +1,2 @@
+com.forward.hrms.commons.kafka.autoconfig.KafkaCommonAutoConfiguration
+com.forward.hrms.commons.kafka.autoconfig.OutboxAutoConfiguration

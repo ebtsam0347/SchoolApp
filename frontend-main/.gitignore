@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+dist/
+dist-ssr/
+*.local
+
+# env
+.env
+.env.local
+.env.*.local
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# test
+coverage/
+
+# Playwright MCP captures (snapshots, screenshots, console logs from browser smoke tests)
+.playwright-mcp/
+
+# UX walkthrough notes — kept local, not part of the source of truth
+findings/
+
+# local-only AI agent context
+CLAUDE.md
+
+# cloudflare wrangler
+.wrangler/
+.dev.vars

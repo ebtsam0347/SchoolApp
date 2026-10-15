@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit
+  template:
+    spec:
+      containers:
+        - name: audit
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi

@@ -1,0 +1,24 @@
+# FSHRMS Grafana dashboards.
+# kube-prometheus-stack's grafana sidecar watches every namespace for
+# ConfigMaps labelled `grafana_dashboard=1` and loads any `*.json`
+# data key as a dashboard. We ship one ConfigMap per dashboard so the
+# 1MiB ConfigMap limit can never bite us.
+namespace: observability
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: FSHRMS
+
+configMapGenerator:
+  - name: fshrms-dashboard-overview
+    files:
+      - fshrms-overview.json
+  - name: fshrms-dashboard-service-detail
+    files:
+      - fshrms-service-detail.json
+  - name: fshrms-dashboard-logs
+    files:
+      - fshrms-logs.json

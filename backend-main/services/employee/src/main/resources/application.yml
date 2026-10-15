@@ -1,0 +1,105 @@
+spring:
+  application:
+    name: employee
+  datasource:
+    # currentSchema sets the JDBC connection's search_path so unqualified
+    # native SQL (e.g. EmployeeCodeService's ON CONFLICT upsert against
+    # employee_code_sequence) resolves against the employee schema. The
+    # Hibernate-managed JPQL paths use spring.jpa.properties.hibernate.default_schema;
+    # this is its native-SQL counterpart.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fshrms}?currentSchema=employee
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: employee
+  flyway:
+    enabled: true
+    default-schema: employee
+    schemas: employee
+    out-of-order: true
+    locations: classpath:db/migration,classpath:db/commons-outbox,classpath:db/commons-saga,classpath:db/commons-approval
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+    web:
+      pageable:
+        # §7.employee #71 — cap any incoming `?size=...` so a caller
+        # passing size=10000 doesn't get a 10000-row page.
+        default-page-size: 50
+        max-page-size: 100
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: employee
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8082
+
+hrms:
+  openapi:
+    title: Spirit of Islam School HRMS — Employee API
+    description: |
+      Employee records, org structure (departments, sections, designations,
+      grades), location catalogs, and the onboarding + termination sagas.
+      Catalog endpoints are HR-managed; ESS endpoints under /employees/me
+      let an employee view and edit a small set of fields on themselves.
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  approval:
+    permissions:
+      read: employee.read
+      write: employee.write
+      admin: employee.admin
+      override: employee.approval.override
+  outbox:
+    enabled: true
+    poll-delay: 1s
+    batch-size: 100
+  auth:
+    base-url: ${AUTH_BASE_URL:http://localhost:8081}
+  payroll:
+    base-url: ${PAYROLL_BASE_URL:http://localhost:8087}
+  attendance:
+    base-url: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+  employee:
+    employee-code:
+      prefix:
+        value: FS
+        enabled: false
+    documents:
+      bucket: employee-docs
+      avatar-bucket: employee-avatars
+      upload-url-ttl: 10m
+      download-url-ttl: 10m
+      # Avatar GET URLs are signed for a week and memoized in Redis under the
+      # object key, so the URL a directory page renders is byte-identical on
+      # every load and the browser can actually cache the image. Shortening
+      # this back to minutes re-introduces ~100 uncacheable image requests per
+      # page view. Capped at 7 days by SigV4.
+      avatar-url-ttl: 7d
+      max-size-bytes: 10485760        # 10 MB
+      avatar-max-size-bytes: 2097152  # 2 MB
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    region: ${MINIO_REGION:us-east-1}
+    ensure-buckets:
+      - employee-docs
+      - employee-avatars
+      - reports
+    default-url-ttl: 10m

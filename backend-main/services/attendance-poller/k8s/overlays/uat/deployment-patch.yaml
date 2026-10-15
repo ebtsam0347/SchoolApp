@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attendance-poller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attendance-poller
+  template:
+    spec:
+      containers:
+        - name: attendance-poller
+          resources:
+            requests:
+              cpu: null
+              memory: null
+            limits:
+              cpu: 200m
+              memory: 256Mi

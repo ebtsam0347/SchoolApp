@@ -1,0 +1,42 @@
+# LAN LoadBalancer for the frontend, so the office router can port-forward a
+# public high port straight to a host port on this node.
+#
+# ENV_NAME_PLACEHOLDER and LAN_PORT_PLACEHOLDER are substituted by
+# scripts/06-platform-up.sh, which applies this only for prod.
+#
+# WHY THIS EXISTS. k3s binds a host port for a Service of type LoadBalancer
+# (klipper-lb runs a svclb DaemonSet using hostPort). A NodePort Service does
+# not give you the port you asked for — it gives you one in the 30000-32767
+# range. The `web` Service is a NodePort (80:30080), so nothing listened on
+# 5000 and every forwarded packet hit a closed port.
+#
+# This is the same mechanism already serving the academy app on the UAT VM:
+#
+#   prod/academy-web-lan   LoadBalancer   4400:32218/TCP   -> 10.10.100.50:4400
+#
+# The router forwards <public>:4400 to 10.10.100.50:4400 and it works because
+# a LoadBalancer Service is holding that host port open. Matching that here
+# means one convention across both hosts: ask for a host port, get a host port.
+#
+# Traffic through this path goes straight to the web pods and skips Traefik.
+# That is fine and intentional — the pod's nginx proxies /api/ to the gateway
+# in-cluster, so the whole app is reachable. The Traefik IngressRoutes in
+# web-ingress.yaml stay for LAN access by hostname.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-lan
+  namespace: ENV_NAME_PLACEHOLDER
+  labels:
+    app: web
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: LAN_PORT_PLACEHOLDER
+      targetPort: http
+      protocol: TCP

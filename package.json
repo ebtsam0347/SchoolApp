@@ -1,0 +1,11 @@
+{
+  "name": "school-app",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend-main run dev",
+    "build": "npm --prefix frontend-main run build",
+    "preview": "npm --prefix frontend-main run preview",
+    "lint": "npm --prefix frontend-main run lint",
+    "install:frontend": "npm --prefix frontend-main install"
+  }
+}

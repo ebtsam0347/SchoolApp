@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Employee ID card — one CR80 card (85.6 x 54 mm = 243 x 153 pt), zero
+  margins so the PDF page is the card.
+
+  Layout: split card.
+    Left  (0..84)   ink panel: logo tile, photo in a maroon frame on a soft
+                    halo, card number, "EMPLOYEE IDENTITY CARD".
+    Right (84..243) cream surface: company + address, short maroon bar,
+                    name, designation (maroon caps), then a two-column
+                    label-over-value grid, then the authorised signature.
+    A maroon strip runs along the bottom edge.
+
+  Visual identity follows the FS-HRMS app and the other employee reports:
+  ink #1A1714 (app sidebar), accent #9A2D2A (active tab / report rules),
+  surface #FCFAF5, rules #E5DDD0, labels #8C8175, secondary #4A413A,
+  sidebar-muted #D4CABE, halo #2A2521.
+
+  Data contract: EmployeeCardService (+ LetterSettingsService letterhead
+  parameters). One data row per card; the detail band is exactly one page,
+  so a bulk run prints one card per page. Values use textAdjust="ScaleFont" so long text shrinks to fit.
+  Fonts: SansSerif with explicit pdfFontName (no font extension, so the
+  app's Inter isn't available). Never size 13.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="employee-card" pageWidth="243" pageHeight="153"
+              columnWidth="243" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0"
+              uuid="9c5c3d36-1234-4abc-8000-000000000060">
+
+    <style name="label" forecolor="#8C8175" fontName="SansSerif" fontSize="4.3" isBold="true" pdfFontName="Helvetica-Bold"/>
+    <style name="value" forecolor="#1A1714" fontName="SansSerif" fontSize="6.5" pdfFontName="Helvetica"/>
+
+    <!-- Letterhead (LetterSettingsService) -->
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="companyContact" class="java.lang.String"/>
+    <!-- Logo as bytes: an InputStream can be read once, and a bulk run prints it on every card. -->
+    <parameter name="companyLogoBytes" class="java.lang.Object"/>
+
+    <!-- Card: one data row per card -->
+    <field name="employeeCode"  class="java.lang.String"/>
+    <field name="fullName"      class="java.lang.String"/>
+    <field name="relationLabel" class="java.lang.String"/>
+    <field name="fatherName"    class="java.lang.String"/>
+    <field name="department"    class="java.lang.String"/>
+    <field name="section"       class="java.lang.String"/>
+    <field name="designation"   class="java.lang.String"/>
+    <field name="joiningDate"   class="java.lang.String"/>
+    <field name="cnic"          class="java.lang.String"/>
+    <field name="photo"         class="java.io.InputStream"/>
+
+    <detail>
+        <band height="153" splitType="Prevent">
+            <!-- Surfaces -->
+            <rectangle>
+                <reportElement mode="Opaque" x="0" y="0" width="243" height="153" forecolor="#FCFAF5" backcolor="#FCFAF5"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <rectangle>
+                <reportElement mode="Opaque" x="0" y="0" width="84" height="153" forecolor="#1A1714" backcolor="#1A1714"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+
+            <!-- ===== Left panel ===== -->
+            <rectangle radius="3">
+                <reportElement mode="Opaque" x="10" y="7" width="64" height="17" forecolor="#FFFFFF" backcolor="#FFFFFF">
+                    <printWhenExpression><![CDATA[$P{companyLogoBytes} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle" onErrorType="Blank">
+                <reportElement x="12" y="8" width="60" height="15">
+                    <printWhenExpression><![CDATA[$P{companyLogoBytes} != null]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[new java.io.ByteArrayInputStream((byte[]) $P{companyLogoBytes})]]></imageExpression>
+            </image>
+
+            <!-- Halo + maroon frame behind the photo -->
+            <ellipse>
+                <reportElement mode="Opaque" x="4" y="24" width="76" height="76" forecolor="#2A2521" backcolor="#2A2521"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </ellipse>
+            <rectangle>
+                <reportElement mode="Opaque" x="15" y="30" width="54" height="66" forecolor="#9A2D2A" backcolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle" onErrorType="Blank">
+                <reportElement mode="Opaque" x="17" y="32" width="50" height="62" backcolor="#FFFFFF">
+                    <printWhenExpression><![CDATA[$F{photo} != null]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$F{photo}]]></imageExpression>
+            </image>
+            <staticText>
+                <reportElement mode="Opaque" x="17" y="32" width="50" height="62" forecolor="#8C8175" backcolor="#F8F4ED">
+                    <printWhenExpression><![CDATA[$F{photo} == null]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="5" pdfFontName="Helvetica"/></textElement>
+                <text><![CDATA[Photo]]></text>
+            </staticText>
+
+            <!-- Card number -->
+            <staticText>
+                <reportElement x="0" y="103" width="84" height="6" forecolor="#D4CABE"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="4.3" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[CARD NO.]]></text>
+            </staticText>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="6" y="109" width="72" height="13" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$F{employeeCode}]]></textFieldExpression>
+            </textField>
+            <rectangle>
+                <reportElement mode="Opaque" x="32" y="124" width="20" height="2" forecolor="#9A2D2A" backcolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="0" y="133" width="84" height="8" forecolor="#8C8175"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="4.3" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[EMPLOYEE IDENTITY CARD]]></text>
+            </staticText>
+
+            <!-- ===== Right side ===== -->
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="94" y="8" width="141" height="10" forecolor="#1A1714"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="94" y="18" width="141" height="6" forecolor="#8C8175"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="4.3" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="94" y="24" width="141" height="6" forecolor="#8C8175"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="4.3" pdfFontName="Helvetica"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyContact}]]></textFieldExpression>
+            </textField>
+            <rectangle>
+                <reportElement mode="Opaque" x="94" y="32" width="24" height="2" forecolor="#9A2D2A" backcolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+
+            <!-- Name + designation -->
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="94" y="38" width="141" height="14" forecolor="#1A1714"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10.5" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$F{fullName}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement x="94" y="52" width="141" height="8" forecolor="#9A2D2A"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="5.8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$F{designation} == null ? null : $F{designation}.toUpperCase()]]></textFieldExpression>
+            </textField>
+
+            <!-- Grid: label over value -->
+            <line>
+                <reportElement x="94" y="64" width="141" height="1" forecolor="#E5DDD0"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement style="label" x="94" y="67" width="141" height="6"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{relationLabel} == null ? "S/D/O" : $F{relationLabel}]]></textFieldExpression>
+            </textField>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement style="value" x="94" y="73" width="141" height="9"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{fatherName}]]></textFieldExpression>
+            </textField>
+
+            <line>
+                <reportElement x="94" y="84" width="141" height="1" forecolor="#E5DDD0"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement style="label" x="94" y="87" width="70" height="6"/>
+                <textElement verticalAlignment="Middle"/>
+                <text><![CDATA[DEPARTMENT]]></text>
+            </staticText>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement style="value" x="94" y="93" width="70" height="9"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{department}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement style="label" x="168" y="87" width="67" height="6"/>
+                <textElement verticalAlignment="Middle"/>
+                <text><![CDATA[SECTION]]></text>
+            </staticText>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement style="value" x="168" y="93" width="67" height="9"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{section}]]></textFieldExpression>
+            </textField>
+
+            <line>
+                <reportElement x="94" y="104" width="141" height="1" forecolor="#E5DDD0"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement style="label" x="94" y="107" width="70" height="6"/>
+                <textElement verticalAlignment="Middle"/>
+                <text><![CDATA[JOINING DATE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement style="value" x="94" y="113" width="70" height="9"/>
+                <textElement verticalAlignment="Middle"><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$F{joiningDate}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement style="label" x="168" y="107" width="67" height="6"/>
+                <textElement verticalAlignment="Middle"/>
+                <text><![CDATA[CNIC]]></text>
+            </staticText>
+            <textField textAdjust="ScaleFont" isBlankWhenNull="true">
+                <reportElement style="value" x="168" y="113" width="67" height="9"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{cnic}]]></textFieldExpression>
+            </textField>
+
+            <!-- Authorised signature -->
+            <line>
+                <reportElement x="168" y="137" width="67" height="1" forecolor="#4A413A"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="168" y="139" width="67" height="6" forecolor="#8C8175"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="4" pdfFontName="Helvetica"/></textElement>
+                <text><![CDATA[Authorised Signature]]></text>
+            </staticText>
+
+            <!-- Bottom accent strip -->
+            <rectangle>
+                <reportElement mode="Opaque" x="0" y="149" width="243" height="4" forecolor="#9A2D2A" backcolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+        </band>
+    </detail>
+</jasperReport>

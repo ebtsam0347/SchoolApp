@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="executive-dashboard" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="2b1a55c0-7b7b-7b7b-8b00-000000000001">
+
+    <subDataset name="headcountDS" uuid="bbbb0001-0000-0000-0000-000000000001">
+        <field name="serial"       class="java.lang.Integer"/>
+        <field name="month"        class="java.lang.String"/>
+        <field name="joiners"      class="java.lang.Integer"/>
+        <field name="leavers"      class="java.lang.Integer"/>
+        <field name="endHeadcount" class="java.lang.Integer"/>
+    </subDataset>
+    <subDataset name="attritionDS" uuid="bbbb0002-0000-0000-0000-000000000002">
+        <field name="serial"  class="java.lang.Integer"/>
+        <field name="month"   class="java.lang.String"/>
+        <field name="leavers" class="java.lang.Integer"/>
+        <field name="ratePct" class="java.lang.String"/>
+    </subDataset>
+    <subDataset name="punctualityDS" uuid="bbbb0003-0000-0000-0000-000000000003">
+        <field name="serial"         class="java.lang.Integer"/>
+        <field name="month"          class="java.lang.String"/>
+        <field name="onTimePct"      class="java.lang.String"/>
+        <field name="absenteeismPct" class="java.lang.String"/>
+    </subDataset>
+    <subDataset name="costDS" uuid="bbbb0004-0000-0000-0000-000000000004">
+        <field name="serial"      class="java.lang.Integer"/>
+        <field name="month"       class="java.lang.String"/>
+        <field name="gross"       class="java.lang.String"/>
+        <field name="totalCost"   class="java.lang.String"/>
+        <field name="costPerHead" class="java.lang.String"/>
+    </subDataset>
+    <subDataset name="distributionDS" uuid="bbbb0005-0000-0000-0000-000000000005">
+        <field name="metric" class="java.lang.String"/>
+        <field name="value"  class="java.lang.String"/>
+    </subDataset>
+
+    <parameter name="companyName"     class="java.lang.String"/>
+    <parameter name="generatedOn"     class="java.lang.String"/>
+
+    <parameter name="kpiHeadcount"     class="java.lang.String"/>
+    <parameter name="kpiAttrition"     class="java.lang.String"/>
+    <parameter name="kpiOnTime"        class="java.lang.String"/>
+    <parameter name="kpiAbsenteeism"   class="java.lang.String"/>
+    <parameter name="kpiOtHours"       class="java.lang.String"/>
+    <parameter name="kpiPayrollCost"   class="java.lang.String"/>
+
+    <parameter name="headcountRows"    class="java.util.Collection"/>
+    <parameter name="attritionRows"    class="java.util.Collection"/>
+    <parameter name="punctualityRows"  class="java.util.Collection"/>
+    <parameter name="costRows"         class="java.util.Collection"/>
+    <parameter name="distributionRows" class="java.util.Collection"/>
+
+    <title>
+        <band height="120">
+            <textField>
+                <reportElement x="0" y="0" width="555" height="22"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="14" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName} + " — Executive Dashboard"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="24" width="555" height="14"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA["Generated " + $P{generatedOn} + " · last 12 months"]]></textFieldExpression>
+            </textField>
+
+            <staticText><reportElement x="0"   y="48" width="180" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Headcount]]></text></staticText>
+            <staticText><reportElement x="187" y="48" width="180" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Attrition (rolling 12m)]]></text></staticText>
+            <staticText><reportElement x="374" y="48" width="181" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Last month — payroll cost]]></text></staticText>
+
+            <textField>
+                <reportElement x="0"   y="62" width="180" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiHeadcount}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="187" y="62" width="180" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiAttrition}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="374" y="62" width="181" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiPayrollCost}]]></textFieldExpression>
+            </textField>
+
+            <staticText><reportElement x="0"   y="86" width="180" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Last month — on-time %]]></text></staticText>
+            <staticText><reportElement x="187" y="86" width="180" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Last month — absenteeism %]]></text></staticText>
+            <staticText><reportElement x="374" y="86" width="181" height="14" mode="Opaque" backcolor="#F1F4F9"/>
+                <textElement textAlignment="Center"><font isBold="true" size="9"/></textElement>
+                <text><![CDATA[Last month — OT hours]]></text></staticText>
+
+            <textField>
+                <reportElement x="0"   y="100" width="180" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiOnTime}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="187" y="100" width="180" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiAbsenteeism}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="374" y="100" width="181" height="20"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{kpiOtHours}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <detail>
+        <band height="160">
+            <staticText><reportElement x="0" y="6" width="555" height="14"/>
+                <textElement><font isBold="true" size="10"/></textElement>
+                <text><![CDATA[Headcount trend (last 12 months)]]></text></staticText>
+
+            <staticText><reportElement x="0"   y="22" width="40"  height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Center"><font isBold="true" size="8"/></textElement><text><![CDATA[#]]></text></staticText>
+            <staticText><reportElement x="40"  y="22" width="160" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Month]]></text></staticText>
+            <staticText><reportElement x="200" y="22" width="115" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Joiners]]></text></staticText>
+            <staticText><reportElement x="315" y="22" width="115" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Leavers]]></text></staticText>
+            <staticText><reportElement x="430" y="22" width="125" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[End headcount]]></text></staticText>
+
+            <componentElement>
+                <reportElement x="0" y="36" width="555" height="120"/>
+                <jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components"
+                         xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+                         printOrder="Vertical">
+                    <datasetRun subDataset="headcountDS" uuid="aaaa0001-0000-0000-0000-000000000001">
+                        <dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRMapCollectionDataSource($P{headcountRows})]]></dataSourceExpression>
+                    </datasetRun>
+                    <jr:listContents height="11" width="555">
+                        <textField><reportElement x="0"   y="0" width="40"  height="10"/>
+                            <textElement textAlignment="Center"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression></textField>
+                        <textField><reportElement x="40"  y="0" width="160" height="10"/>
+                            <textElement><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{month}]]></textFieldExpression></textField>
+                        <textField><reportElement x="200" y="0" width="115" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{joiners}]]></textFieldExpression></textField>
+                        <textField><reportElement x="315" y="0" width="115" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{leavers}]]></textFieldExpression></textField>
+                        <textField><reportElement x="430" y="0" width="125" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{endHeadcount}]]></textFieldExpression></textField>
+                    </jr:listContents>
+                </jr:list>
+            </componentElement>
+        </band>
+
+        <band height="160">
+            <staticText><reportElement x="0" y="6" width="555" height="14"/>
+                <textElement><font isBold="true" size="10"/></textElement>
+                <text><![CDATA[Attrition trend (last 12 months)]]></text></staticText>
+
+            <staticText><reportElement x="0"   y="22" width="40"  height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Center"><font isBold="true" size="8"/></textElement><text><![CDATA[#]]></text></staticText>
+            <staticText><reportElement x="40"  y="22" width="225" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Month]]></text></staticText>
+            <staticText><reportElement x="265" y="22" width="145" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Leavers]]></text></staticText>
+            <staticText><reportElement x="410" y="22" width="145" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Rate]]></text></staticText>
+
+            <componentElement>
+                <reportElement x="0" y="36" width="555" height="120"/>
+                <jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components"
+                         xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+                         printOrder="Vertical">
+                    <datasetRun subDataset="attritionDS" uuid="aaaa0002-0000-0000-0000-000000000002">
+                        <dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRMapCollectionDataSource($P{attritionRows})]]></dataSourceExpression>
+                    </datasetRun>
+                    <jr:listContents height="11" width="555">
+                        <textField><reportElement x="0"   y="0" width="40"  height="10"/>
+                            <textElement textAlignment="Center"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression></textField>
+                        <textField><reportElement x="40"  y="0" width="225" height="10"/>
+                            <textElement><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{month}]]></textFieldExpression></textField>
+                        <textField><reportElement x="265" y="0" width="145" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{leavers}]]></textFieldExpression></textField>
+                        <textField><reportElement x="410" y="0" width="145" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{ratePct}]]></textFieldExpression></textField>
+                    </jr:listContents>
+                </jr:list>
+            </componentElement>
+        </band>
+
+        <band height="160">
+            <staticText><reportElement x="0" y="6" width="555" height="14"/>
+                <textElement><font isBold="true" size="10"/></textElement>
+                <text><![CDATA[Punctuality trend (last 12 months)]]></text></staticText>
+
+            <staticText><reportElement x="0"   y="22" width="40"  height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Center"><font isBold="true" size="8"/></textElement><text><![CDATA[#]]></text></staticText>
+            <staticText><reportElement x="40"  y="22" width="225" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Month]]></text></staticText>
+            <staticText><reportElement x="265" y="22" width="145" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[On-time %]]></text></staticText>
+            <staticText><reportElement x="410" y="22" width="145" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Absenteeism %]]></text></staticText>
+
+            <componentElement>
+                <reportElement x="0" y="36" width="555" height="120"/>
+                <jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components"
+                         xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+                         printOrder="Vertical">
+                    <datasetRun subDataset="punctualityDS" uuid="aaaa0003-0000-0000-0000-000000000003">
+                        <dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRMapCollectionDataSource($P{punctualityRows})]]></dataSourceExpression>
+                    </datasetRun>
+                    <jr:listContents height="11" width="555">
+                        <textField><reportElement x="0"   y="0" width="40"  height="10"/>
+                            <textElement textAlignment="Center"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression></textField>
+                        <textField><reportElement x="40"  y="0" width="225" height="10"/>
+                            <textElement><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{month}]]></textFieldExpression></textField>
+                        <textField><reportElement x="265" y="0" width="145" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{onTimePct}]]></textFieldExpression></textField>
+                        <textField><reportElement x="410" y="0" width="145" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{absenteeismPct}]]></textFieldExpression></textField>
+                    </jr:listContents>
+                </jr:list>
+            </componentElement>
+        </band>
+
+        <band height="160">
+            <staticText><reportElement x="0" y="6" width="555" height="14"/>
+                <textElement><font isBold="true" size="10"/></textElement>
+                <text><![CDATA[Payroll cost trend (last 12 months, PKR)]]></text></staticText>
+
+            <staticText><reportElement x="0"   y="22" width="40"  height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Center"><font isBold="true" size="8"/></textElement><text><![CDATA[#]]></text></staticText>
+            <staticText><reportElement x="40"  y="22" width="160" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Month]]></text></staticText>
+            <staticText><reportElement x="200" y="22" width="115" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Gross]]></text></staticText>
+            <staticText><reportElement x="315" y="22" width="115" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Total cost]]></text></staticText>
+            <staticText><reportElement x="430" y="22" width="125" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Cost per head]]></text></staticText>
+
+            <componentElement>
+                <reportElement x="0" y="36" width="555" height="120"/>
+                <jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components"
+                         xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+                         printOrder="Vertical">
+                    <datasetRun subDataset="costDS" uuid="aaaa0004-0000-0000-0000-000000000004">
+                        <dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRMapCollectionDataSource($P{costRows})]]></dataSourceExpression>
+                    </datasetRun>
+                    <jr:listContents height="11" width="555">
+                        <textField><reportElement x="0"   y="0" width="40"  height="10"/>
+                            <textElement textAlignment="Center"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression></textField>
+                        <textField><reportElement x="40"  y="0" width="160" height="10"/>
+                            <textElement><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{month}]]></textFieldExpression></textField>
+                        <textField><reportElement x="200" y="0" width="115" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{gross}]]></textFieldExpression></textField>
+                        <textField><reportElement x="315" y="0" width="115" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{totalCost}]]></textFieldExpression></textField>
+                        <textField><reportElement x="430" y="0" width="125" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{costPerHead}]]></textFieldExpression></textField>
+                    </jr:listContents>
+                </jr:list>
+            </componentElement>
+        </band>
+
+        <band height="120">
+            <staticText><reportElement x="0" y="6" width="555" height="14"/>
+                <textElement><font isBold="true" size="10"/></textElement>
+                <text><![CDATA[Salary distribution (basic, PKR — current snapshot)]]></text></staticText>
+
+            <staticText><reportElement x="0"   y="22" width="280" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Metric]]></text></staticText>
+            <staticText><reportElement x="280" y="22" width="275" height="14" mode="Opaque" backcolor="#EEEEEE"/>
+                <textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Value]]></text></staticText>
+
+            <componentElement>
+                <reportElement x="0" y="36" width="555" height="80"/>
+                <jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components"
+                         xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+                         printOrder="Vertical">
+                    <datasetRun subDataset="distributionDS" uuid="aaaa0005-0000-0000-0000-000000000005">
+                        <dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRMapCollectionDataSource($P{distributionRows})]]></dataSourceExpression>
+                    </datasetRun>
+                    <jr:listContents height="12" width="555">
+                        <textField><reportElement x="0"   y="0" width="280" height="10"/>
+                            <textElement><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{metric}]]></textFieldExpression></textField>
+                        <textField><reportElement x="280" y="0" width="275" height="10"/>
+                            <textElement textAlignment="Right"><font size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$F{value}]]></textFieldExpression></textField>
+                    </jr:listContents>
+                </jr:list>
+            </componentElement>
+        </band>
+    </detail>
+</jasperReport>

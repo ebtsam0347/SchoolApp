@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bff
+  labels:
+    app: bff
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bff
+  template:
+    metadata:
+      labels:
+        app: bff
+    spec:
+      containers:
+        - name: bff
+          image: bff
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8086
+            - name: mgmt
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: bff-config
+            - secretRef:
+                name: bff-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: mgmt
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: mgmt
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3

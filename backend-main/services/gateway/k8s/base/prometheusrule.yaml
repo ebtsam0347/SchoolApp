@@ -1,0 +1,80 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gateway
+  labels:
+    app: gateway
+    release: kps
+spec:
+  groups:
+    - name: gateway.slo
+      rules:
+        # 5xx rate above 5% for 5m — most likely to surface real bugs.
+        - alert: GatewayHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="gateway",status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="gateway"}[5m]))
+              > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: gateway
+          annotations:
+            summary: "gateway 5xx rate > 5% (ns {{ $labels.namespace }})"
+            description: "5xx rate is {{ $value | humanizePercentage }} over the last 5m."
+
+        # No instances scraping at all — pod gone or mgmt port down.
+        - alert: GatewayDown
+          expr: up{job="gateway"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: gateway
+          annotations:
+            summary: "gateway is down (ns {{ $labels.namespace }})"
+            description: "No Prometheus targets for gateway are reporting up=1 for 2 minutes."
+
+        # p95 above 1s sustained — pre-incident latency signal.
+        - alert: GatewayHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, le) (rate(http_server_requests_seconds_bucket{app="gateway"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            service: gateway
+          annotations:
+            summary: "gateway p95 latency > 1s (ns {{ $labels.namespace }})"
+            description: "p95 latency is {{ $value | humanizeDuration }} over the last 5m, sustained 10m."
+
+        # Heap pool used > 90% of committed for 10m — about to OOM, GC thrashing soon.
+        - alert: GatewayJvmHeapPressure
+          expr: |
+            sum by (namespace, pod) (jvm_memory_used_bytes{app="gateway",area="heap"})
+              /
+            sum by (namespace, pod) (jvm_memory_committed_bytes{app="gateway",area="heap"})
+              > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            service: gateway
+          annotations:
+            summary: "gateway JVM heap > 90% on {{ $labels.pod }}"
+            description: "Heap used / committed is {{ $value | humanizePercentage }} for 10m. Consider raising memory limits or investigating a leak."
+
+        # HikariCP threads waiting on a connection — DB pool starvation.
+        # Fires only on services with a DataSource (auth/audit/employee/
+        # attendance/payroll/notification/chat). Gateway/bff have no metric
+        # so the rule silently no-ops.
+        - alert: GatewayHikariConnectionStarvation
+          expr: |
+            max by (namespace, pod) (hikaricp_connections_pending{app="gateway"}) > 0
+          for: 5m
+          labels:
+            severity: warning
+            service: gateway
+          annotations:
+            summary: "gateway DB pool starved on {{ $labels.pod }}"
+            description: "{{ $value }} thread(s) waiting for a HikariCP connection for 5m. Tune pool size or investigate slow queries."

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-config
+data:
+  TZ: "Asia/Karachi"
+  JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Karachi"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+  HRMS_ZIPKIN_ENDPOINT: http://zipkin.observability.svc.cluster.local:9411/api/v2/spans
+  DB_HOST: "10.10.100.50"
+  DB_PORT: "5432"
+  REDIS_HOST: "10.10.100.50"
+  REDIS_PORT: "6379"
+  KAFKA_BROKERS: "10.10.100.50:9092"
+  MINIO_ENDPOINT: "http://10.10.100.50:9000"
+  EMPLOYEE_BASE_URL: "http://employee:8082"
+  HRMS_OPENAPI_SERVER_URL: "http://api.uat.hrms.local"

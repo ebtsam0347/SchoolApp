@@ -1,0 +1,433 @@
+/*
+ * Premium split-screen login.
+ *
+ * Layout: brand panel on the left (always-dark sidebar palette + theme-tinted
+ * radial bleed); form panel on the right. The right edge of the brand panel
+ * is clipped on a slope so the divider reads as a deliberate diagonal.
+ *
+ * Vertical rhythm is anchored on three rows: centred hero (mark + headline +
+ * tagline), feature chips just below, foot at the bottom. The hero row takes
+ * `1fr` so it always sits in the optical centre of the panel — no matter how
+ * tall or short the viewport is.
+ *
+ * Sizing rule: the page is locked to 100dvh and never scrolls the document.
+ */
+
+.login-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .login-shell {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  }
+}
+
+/* ============================================================
+ * Brand panel
+ * ============================================================ */
+.login-brand {
+  position: relative;
+  display: grid;
+  /* Hero centred in the available space; chips + foot pinned to the bottom. */
+  grid-template-rows: 1fr auto auto;
+  row-gap: 24px;
+  padding: 40px 144px 36px 48px;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-sidebar-bg);
+  color: var(--app-sidebar-text-active);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 96px) 100%, 0 100%);
+  isolation: isolate;
+}
+
+@media (max-height: 800px) and (min-width: 1024px) {
+  .login-brand {
+    row-gap: 16px;
+    padding: 28px 136px 26px 48px;
+  }
+}
+
+/* Theme-tinted radial bleed: top-left primary, bottom-right secondary. */
+.login-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 0% 0%,
+      color-mix(in srgb, var(--app-accent-grad-from) 55%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 70% 55% at 100% 100%,
+      color-mix(in srgb, var(--app-accent-grad-to) 40%, transparent),
+      transparent 60%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle dot grid texture. */
+.login-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, currentColor 14%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
+  opacity: 0.35;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
+
+/* Stack content above the decorative layers. */
+.login-brand > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+ * Hero — vertically + horizontally centred stack.
+ * ============================================================ */
+.login-brand-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+  min-height: 0;
+  /* Tagline narrowness reads better centred — give it a measure. */
+  max-width: 32ch;
+  margin: 0 auto;
+}
+
+/* Stagger hero children to drop in while the watermark dissolves behind
+ * them. Cascade lands inside the 0–1.6s settle window so the bold FS
+ * "introduces" the brand and the text "answers" as it fades to a hairline. */
+.login-brand-hero > * {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: login-hero-rise 760ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.login-brand-hero > *:nth-child(1) { animation-delay: 280ms; }
+.login-brand-hero > *:nth-child(2) { animation-delay: 380ms; }
+.login-brand-hero > *:nth-child(3) { animation-delay: 480ms; }
+.login-brand-hero > *:nth-child(4) { animation-delay: 580ms; }
+.login-brand-hero > *:nth-child(5) { animation-delay: 680ms; }
+
+@keyframes login-hero-rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-height: 800px) and (min-width: 1024px) {
+  .login-brand-hero {
+    gap: 14px;
+  }
+}
+
+/* Badge — bigger and standalone now that it leads a centred column. */
+.login-brand-crest {
+  width: 132px;
+  height: 132px;
+  border-radius: 24px;
+  object-fit: cover;
+  box-shadow: 0 12px 40px -12px color-mix(in srgb, var(--app-accent-grad-from) 70%, transparent);
+}
+
+@media (max-height: 800px) and (min-width: 1024px) {
+  .login-brand-crest {
+    width: 104px;
+    height: 104px;
+    border-radius: 20px;
+  }
+}
+
+.login-brand-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 16px;
+  color: var(--app-sidebar-text-active);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px -16px color-mix(in srgb, var(--app-accent-grad-from) 60%, transparent);
+}
+
+@media (max-height: 800px) and (min-width: 1024px) {
+  .login-brand-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+}
+
+.login-brand-name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.15;
+}
+
+.login-brand-name-primary {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: var(--app-sidebar-text-active);
+}
+
+.login-brand-name-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--app-sidebar-text-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Hairline rule between wordmark and headline — quiet centred separator. */
+.login-brand-rule {
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: color-mix(in srgb, currentColor 28%, transparent);
+  margin: 6px 0 2px;
+}
+
+.login-brand-headline {
+  margin: 0;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+  color: var(--app-sidebar-text-active);
+  text-wrap: balance;
+}
+
+.login-brand-tagline {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--app-sidebar-text-active) 76%, transparent);
+  text-wrap: pretty;
+}
+
+/* ============================================================
+ * Feature chips — compact horizontal row under the hero.
+ * Centred to match the hero, not bottom-anchored as cards.
+ * ============================================================ */
+.login-brand-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.login-brand-features li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 8px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--app-sidebar-text-active) 88%, transparent);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  backdrop-filter: blur(8px);
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    background 320ms ease;
+}
+
+.login-brand-features li:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.login-brand-feat-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--app-sidebar-icon-active) 18%, transparent);
+  color: var(--app-sidebar-icon-active);
+}
+
+@media (max-height: 720px) and (min-width: 1024px) {
+  .login-brand-features li:nth-child(3) {
+    display: none;
+  }
+}
+
+/* ---------- foot ---------- */
+.login-brand-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--app-sidebar-text-muted);
+  text-transform: uppercase;
+}
+
+/* ---------- watermark ---------- */
+/* Tinted with the theme's accent. Lands bold and fully filled, then
+ * dissolves to a quiet hairline outline as the hero text drops in. */
+.login-brand-watermark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: color-mix(
+    in srgb,
+    var(--app-accent-grad-from) 55%,
+    color-mix(in srgb, currentColor 30%, transparent)
+  );
+  z-index: 0;
+  pointer-events: none;
+  /* One-shot intro: bloom in bright + filled, then settle to a quiet
+   * hairline. No looping glow — the hand-off was visibly stepping. */
+  opacity: 0.65;
+  animation: login-watermark-bloom 2000ms cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+/* Fill dissolves to leave only the hairline stroke behind. */
+.login-brand-watermark-text {
+  fill-opacity: 1;
+  animation: login-watermark-settle 1800ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes login-watermark-bloom {
+  0% {
+    opacity: 0.92;
+    filter:
+      drop-shadow(0 0 14px color-mix(in srgb, var(--app-accent-grad-from) 75%, transparent))
+      drop-shadow(0 0 48px color-mix(in srgb, var(--app-accent-grad-from) 50%, transparent));
+  }
+  60% {
+    opacity: 0.78;
+    filter:
+      drop-shadow(0 0 9px color-mix(in srgb, var(--app-accent-grad-from) 62%, transparent))
+      drop-shadow(0 0 36px color-mix(in srgb, var(--app-accent-grad-from) 38%, transparent));
+  }
+  100% {
+    opacity: 0.65;
+    filter:
+      drop-shadow(0 0 6px color-mix(in srgb, var(--app-accent-grad-from) 55%, transparent))
+      drop-shadow(0 0 28px color-mix(in srgb, var(--app-accent-grad-from) 30%, transparent));
+  }
+}
+
+@keyframes login-watermark-settle {
+  0% {
+    fill-opacity: 1;
+  }
+  60% {
+    fill-opacity: 0.18;
+  }
+  100% {
+    fill-opacity: 0;
+  }
+}
+
+
+/* ============================================================
+ * Form panel
+ * ============================================================ */
+.login-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 24px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.login-form-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.login-form-inner {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .login-form {
+    padding-left: clamp(32px, 6vw, 96px);
+    justify-content: flex-start;
+  }
+  .login-form-inner {
+    max-width: 380px;
+  }
+}
+
+.login-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+ * Reduced motion
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .login-brand-features li {
+    transition: none;
+  }
+  .login-brand-features li:hover {
+    transform: none;
+  }
+  .login-brand-watermark,
+  .login-brand-watermark-text,
+  .login-brand-hero > * {
+    animation: none;
+  }
+  .login-brand-watermark {
+    opacity: 0.65;
+  }
+  .login-brand-watermark-text {
+    fill-opacity: 0;
+  }
+  .login-brand-hero > * {
+    opacity: 1;
+    transform: none;
+  }
+}

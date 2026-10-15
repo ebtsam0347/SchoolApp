@@ -1,0 +1,182 @@
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { ArrowRight, Check, Puzzle, Target } from 'lucide-react';
+import { useRef, useState, type KeyboardEvent } from 'react';
+import { PROGRAMMES } from '@/site/content';
+import { usePageMeta } from '@/site/hooks';
+import { CtaBand, Hl, PageHero, ProvisionalNote, Reveal, SectionHead } from '@/site/ui';
+
+export const Route = createFileRoute('/_site/programmes')({
+  component: ProgrammesPage,
+});
+
+function ProgrammesPage() {
+  usePageMeta({
+    title: 'Our Programmes',
+    path: '/programmes',
+    description:
+      'Proposed early-years, nursery, kindergarten and school-readiness programmes at The Spirit of Islam School, with learning objectives and example activities.',
+  });
+
+  const [active, setActive] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const p = PROGRAMMES[active];
+
+  function onKey(e: KeyboardEvent<HTMLButtonElement>) {
+    const last = PROGRAMMES.length - 1;
+    let next = active;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = active === last ? 0 : active + 1;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = active === 0 ? last : active - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    else return;
+    e.preventDefault();
+    setActive(next);
+    tabs.current[next]?.focus();
+  }
+
+  return (
+    <>
+      <PageHero
+        eyebrow="Our programmes"
+        title={
+          <>
+            The Right Experience <Hl>for Every Stage</Hl>
+          </>
+        }
+        lede="Our proposed programmes follow children’s development — from first explorations to confident readiness for formal school."
+        photo="classroom"
+      />
+
+      <section className="s-section" aria-labelledby="prog-title">
+        <div className="s-container">
+          <SectionHead
+            eyebrow="Choose a stage"
+            title={<span id="prog-title">Explore Each Programme</span>}
+          />
+          <ProvisionalNote>
+            These programmes are being planned. Age bands, availability and curriculum details are provisional and will
+            be confirmed by the school before admissions open.
+          </ProvisionalNote>
+
+          <div className="s-tabs" role="tablist" aria-label="Programmes">
+            {PROGRAMMES.map((prog, i) => (
+              <button
+                key={prog.id}
+                ref={(el) => {
+                  tabs.current[i] = el;
+                }}
+                id={`tab-${prog.id}`}
+                type="button"
+                role="tab"
+                aria-selected={i === active}
+                aria-controls={`panel-${prog.id}`}
+                tabIndex={i === active ? 0 : -1}
+                className="s-tab"
+                onClick={() => setActive(i)}
+                onKeyDown={onKey}
+              >
+                <span className="s-tab__name">{prog.name}</span>
+                <span className="s-tab__age">{prog.ageBand}</span>
+              </button>
+            ))}
+          </div>
+
+          <div
+            key={p.id}
+            id={`panel-${p.id}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${p.id}`}
+            tabIndex={0}
+            className="s-prog"
+          >
+            <div className="s-prog__intro">
+              <h3 className="s-h2">{p.name}</h3>
+              <p className="s-prog__age">Proposed age band: {p.ageBand} (to be confirmed)</p>
+              <p className="s-lede">{p.stage}</p>
+            </div>
+
+            <div className="s-prog__cols">
+              <div className="s-prog__box">
+                <h4 className="s-h4">
+                  <Target size={18} aria-hidden="true" /> Learning objectives
+                </h4>
+                <ul className="s-ticks s-ticks--sm">
+                  {p.objectives.map((o) => (
+                    <li key={o}>
+                      <Check size={16} aria-hidden="true" />
+                      {o}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="s-prog__box s-prog__box--tint">
+                <h4 className="s-h4">
+                  <Puzzle size={18} aria-hidden="true" /> Example activities
+                </h4>
+                <ul className="s-ticks s-ticks--sm">
+                  {p.activities.map((a) => (
+                    <li key={a}>
+                      <Check size={16} aria-hidden="true" />
+                      {a}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <dl className="s-prog__areas">
+              {p.areas.map((a) => (
+                <div key={a.label}>
+                  <dt>{a.label}</dt>
+                  <dd>{a.body}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section className="s-section s-section--tint" aria-labelledby="common-title">
+        <div className="s-container">
+          <SectionHead
+            eyebrow="Across every programme"
+            title={
+              <span id="common-title">
+                One Philosophy, <Hl>Growing With Your Child</Hl>
+              </span>
+            }
+          />
+          <ul className="s-cards-3">
+            {[
+              { t: 'Activity-based', b: 'Children learn through hands-on investigation, play and creative projects at every stage.' },
+              { t: 'Values-centred', b: 'Islamic values shape routines, relationships and how children treat one another.' },
+              { t: 'Child-paced', b: 'Teachers observe each child closely and adjust challenge to their readiness.' },
+            ].map((x, i) => (
+              <Reveal as="li" key={x.t} delay={i} className="s-card">
+                <h3 className="s-h4">{x.t}</h3>
+                <p>{x.b}</p>
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <CtaBand
+        title={
+          <>
+            Not Sure Which Stage <Hl>Fits?</Hl>
+          </>
+        }
+        body="Tell us your child’s age and we’ll help you understand the right programme."
+      >
+        <Link to="/admissions" hash="enquiry" className="s-btn s-btn--light">
+          Enquire About Admissions
+          <ArrowRight size={18} aria-hidden="true" />
+        </Link>
+        <Link to="/a-day-at-school" className="s-btn s-btn--outline-light">
+          See a Day at School
+        </Link>
+      </CtaBand>
+    </>
+  );
+}

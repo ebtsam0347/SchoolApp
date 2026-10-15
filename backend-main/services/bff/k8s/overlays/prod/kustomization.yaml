@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - sealed-secret.yaml
+
+configMapGenerator:
+  - name: bff-config
+    behavior: merge
+    literals:
+      - HRMS_OPENAPI_SERVER_URL=https://hrms.forward.pk/api
+      - DB_NAME=prod
+      - REDIS_HOST=10.10.100.51
+      - KAFKA_BROKERS=10.10.100.51:9092
+
+images:
+  - name: bff
+    newName: 10.10.100.51:5001/bff
+    newTag: "GIT_SHA_PLACEHOLDER"
+
+patches:
+  - path: deployment-patch.yaml

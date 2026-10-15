@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: audit
+  labels:
+    app: audit
+    release: kps
+spec:
+  selector:
+    matchLabels:
+      app: audit
+  endpoints:
+    - port: mgmt
+      path: /actuator/prometheus
+      interval: 30s

@@ -1,0 +1,436 @@
+services:
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight-data:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:3.9.0
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: 'CONTROLLER://kafka:9093,INTERNAL://kafka:9094,EXTERNAL://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:9094,EXTERNAL://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9094
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  # Application services live under the `app` profile so plain
+  # `docker compose up -d` brings up infra only (the dev workflow). To
+  # run the full stack in containers:
+  #     docker compose --profile app up -d --build
+  # Postgres lives on the host (Postgres.app) per CLAUDE.md, so the
+  # `auth` container reaches it via `host.docker.internal`. On Mac that
+  # resolves automatically; the `extra_hosts` line below covers Linux.
+  # Postgres.app must accept connections from outside loopback —
+  # set `listen_addresses = '*'` and add a pg_hba rule for the docker
+  # subnet (or `host all all 0.0.0.0/0 scram-sha-256`).
+  auth:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: auth
+        SERVICE_PORT: "8081"
+    image: fshrms/auth:dev
+    ports:
+      - "8081:8081"
+      # Mgmt port stays 9090 inside the container (hardening default).
+      # Published per-service with host = app port + 1000 so /actuator/**
+      # is reachable from the host without colliding across services.
+      - "9081:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+      AUDIT_BASE_URL: http://audit:8085
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - kafka
+    mem_limit: 2g
+    restart: unless-stopped
+
+  audit:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: audit
+        SERVICE_PORT: "8085"
+    image: fshrms/audit:dev
+    ports:
+      - "8085:8085"
+      - "9085:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BROKERS: kafka:9094
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - kafka
+    mem_limit: 2g
+    restart: unless-stopped
+
+  employee:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: employee
+        SERVICE_PORT: "8082"
+    image: fshrms/employee:dev
+    ports:
+      - "8082:8082"
+      - "9082:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+      AUDIT_BASE_URL: http://audit:8085
+      AUTH_BASE_URL: http://auth:8081
+      PAYROLL_BASE_URL: http://payroll:8087
+      ATTENDANCE_BASE_URL: http://attendance:8083
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - kafka
+      - auth
+      - minio
+    mem_limit: 2g
+    restart: unless-stopped
+
+  notification:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: notification
+        SERVICE_PORT: "8084"
+    image: fshrms/notification:dev
+    ports:
+      - "8084:8084"
+      - "9084:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - kafka
+    mem_limit: 2g
+    restart: unless-stopped
+
+  attendance:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: attendance
+        SERVICE_PORT: "8083"
+    image: fshrms/attendance:dev
+    ports:
+      - "8083:8083"
+      - "9083:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+      AUDIT_BASE_URL: http://audit:8085
+      EMPLOYEE_BASE_URL: http://employee:8082
+      # Bearer for attendance-service's own outbound service-to-service calls
+      # (NightlyCloseJob → employee). One-time mint via auth admin API:
+      #   POST /admin/users  { username:"attendance-svc", roleCodes:["ATTENDANCE_SVC"], … }
+      #   POST /admin/users/{id}/service-tokens  { ttlDays: 365 }
+      # Empty in local dev = nightly close will fail at 02:00 PKT with 401;
+      # set the token from your shell or .env to test the schedule.
+      HRMS_ATTENDANCE_SERVICE_TOKEN: "${HRMS_ATTENDANCE_SERVICE_TOKEN:-}"
+      # MinIO for the device-user reconciliation Excel export.
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - kafka
+      - employee
+      - minio
+    # Without a per-container cap, JVM's MaxRAMPercentage=75 reads the
+    # whole 11.67GiB Docker Desktop VM and grows heap toward ~8.7GiB.
+    # With 9 Java services racing the same VM, the kernel OOM-killer
+    # eventually picks the largest victim — historically attendance,
+    # which loop-restarted 138x before this cap was added (exitCode=137).
+    # 2g per service => MaxRAMPercentage=75 of 2g = 1.5g heap per JVM.
+    mem_limit: 2g
+    restart: unless-stopped
+
+  payroll:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: payroll
+        SERVICE_PORT: "8087"
+    image: fshrms/payroll:dev
+    ports:
+      - "8087:8087"
+      - "9087:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      EMPLOYEE_BASE_URL: http://employee:8082
+      ATTENDANCE_BASE_URL: http://attendance:8083
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - kafka
+      - minio
+      - employee
+      - attendance
+    mem_limit: 2g
+    restart: unless-stopped
+
+  chat:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: chat
+        SERVICE_PORT: "8088"
+    image: fshrms/chat:dev
+    ports:
+      - "8088:8088"
+      - "9088:9090"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "5432"
+      DB_NAME: fshrms
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      EMPLOYEE_BASE_URL: http://employee:8082
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - kafka
+      - minio
+      - employee
+    mem_limit: 2g
+    restart: unless-stopped
+
+  # Backend-for-Frontend. Page-shaped composites over auth/audit/employee
+  # /attendance + Redis pub/sub for the live-notification SSE stream.
+  # Reached through the gateway at /bff/** (the gateway adds a `bff`
+  # route + a `BFF` Swagger picker entry).
+  bff:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: bff
+        SERVICE_PORT: "8086"
+    image: fshrms/bff:dev
+    ports:
+      - "8086:8086"
+      - "9086:9090"
+    environment:
+      AUTH_BASE_URL: http://auth:8081
+      AUDIT_BASE_URL: http://audit:8085
+      EMPLOYEE_BASE_URL: http://employee:8082
+      ATTENDANCE_BASE_URL: http://attendance:8083
+      NOTIFICATION_BASE_URL: http://notification:8084
+      PAYROLL_BASE_URL: http://payroll:8087
+      CHAT_BASE_URL: http://chat:8088
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      KAFKA_BROKERS: kafka:9094
+    depends_on:
+      - redis
+      - kafka
+      - auth
+      - audit
+      - employee
+      - attendance
+      - payroll
+      - chat
+    mem_limit: 2g
+    restart: unless-stopped
+
+  # ZKTeco device poller. Long-lived loop that fetches active devices
+  # from attendance-service every --interval seconds and pulls punches
+  # over the ZK protocol. Stateless — no local HWM, the service owns it.
+  #
+  # The container needs IP-level access to the readers' LAN. On Linux
+  # use `network_mode: host`; on Mac/Windows attach the office LAN
+  # subnet to the compose network or run a real device on a routable
+  # address. There is no fixture/fake-device shape — the poller only
+  # talks to live devices.
+  attendance-poller:
+    profiles: ["app"]
+    build:
+      context: services/attendance-poller
+    image: fshrms/attendance-poller:dev
+    environment:
+      POLLER_BASE_URL: http://attendance:8083
+      POLLER_INTERVAL: "60"
+      # Bearer token for an attendance.poller service-account JWT.
+      # Empty in dev: the poller bypasses the gateway and calls
+      # attendance directly, so it injects the X-User-* headers below
+      # instead of presenting a JWT.
+      POLLER_TOKEN: ""
+      # Service-account identity injected as X-User-* headers on every
+      # request. Required because attendance-service runs in
+      # header-trust mode and rejects calls without identity (403).
+      POLLER_IDENTITY_USER_ID: "0"
+      POLLER_IDENTITY_USERNAME: "system-poller"
+      POLLER_IDENTITY_PERMISSIONS: "attendance.poller"
+    depends_on:
+      - attendance
+    restart: unless-stopped
+
+  # Single ingress for clients. Routes to auth/audit/employee/bff,
+  # validates JWTs with the dev public key shipped in commons-web, and
+  # serves the aggregated Swagger UI at http://localhost:8080/swagger-ui.html.
+  gateway:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: gateway
+        SERVICE_PORT: "8080"
+    image: fshrms/gateway:dev
+    ports:
+      - "8080:8080"
+      - "9080:9090"
+    environment:
+      AUTH_BASE_URL: http://auth:8081
+      AUDIT_BASE_URL: http://audit:8085
+      EMPLOYEE_BASE_URL: http://employee:8082
+      ATTENDANCE_BASE_URL: http://attendance:8083
+      NOTIFICATION_BASE_URL: http://notification:8084
+      PAYROLL_BASE_URL: http://payroll:8087
+      CHAT_BASE_URL: http://chat:8088
+      BFF_BASE_URL: http://bff:8086
+    depends_on:
+      - auth
+      - audit
+      - employee
+      - attendance
+      - notification
+      - payroll
+      - chat
+      - bff
+    mem_limit: 2g
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  redis-insight-data:
+  kafka-data:
+  minio-data:

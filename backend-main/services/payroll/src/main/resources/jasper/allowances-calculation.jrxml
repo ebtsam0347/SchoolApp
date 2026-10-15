@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Allowances calculation sheet (accounts report F-7), Legal landscape
+  (14 x 8.5 in — room for eight-plus allowance columns, like the legacy sheet), in the
+  tabular-register family (masters/tabular-register.jrxml): letterhead,
+  applied-filters line, zebra rows, totals, footer.
+
+  The allowance columns come from the salary-component catalog and change
+  when HR adds one, so this template carries everything EXCEPT the table:
+  AllowancesCalculationPdf lays out the columnHeader (Basic Information /
+  Payables / Signature group row + column labels), the detail row and the
+  totals line at the top of the summary band, sized to the page width.
+  Keep the band heights here in step with the constants there.
+
+  Detail fields (all pre-formatted strings) are declared in code:
+  srNo, cardNo, employeeName, department, section, designation, grade,
+  dateOfJoining, a0 … aN (one per allowance), total.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="allowances-calculation" pageWidth="1008" pageHeight="612" orientation="Landscape"
+              columnWidth="968" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail"
+              uuid="9c5c3d36-1234-4abc-8000-000000000071">
+
+    <style name="row.zebra" mode="Opaque" backcolor="#FFFFFF">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue() % 2 == 0)]]></conditionExpression>
+            <style backcolor="#F8F4ED"/>
+        </conditionalStyle>
+    </style>
+    <!-- Total column: tinted in every row so the eye runs down it. -->
+    <style name="cell.total" mode="Opaque" backcolor="#FFF4CC"/>
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="logoPath"       class="java.lang.String"/>
+    <parameter name="reportTitle"    class="java.lang.String"/>
+    <parameter name="periodLabel"    class="java.lang.String"/>
+    <parameter name="filtersText"    class="java.lang.String"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+
+    <title>
+        <band height="74" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="968" height="5" backcolor="#9A2D2A" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <image onErrorType="Blank">
+                <reportElement x="0" y="12" width="60" height="40">
+                    <printWhenExpression><![CDATA[$P{logoPath} != null && !$P{logoPath}.isEmpty()]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{logoPath}]]></imageExpression>
+            </image>
+            <textField>
+                <reportElement x="160" y="10" width="648" height="20" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="14" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="160" y="30" width="648" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="160" y="44" width="648" height="16" forecolor="#9A2D2A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{reportTitle}.toUpperCase() + " — " + $P{periodLabel}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="808" y="12" width="160" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Generated: " + $P{generatedAt}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="62" width="968" height="10" forecolor="#4A413A">
+                    <printWhenExpression><![CDATA[$P{filtersText} != null && !$P{filtersText}.isEmpty()]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{filtersText}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <!-- Filled by AllowancesCalculationPdf: group row (14) + column labels (26). Repeats on every page. -->
+    <columnHeader>
+        <band height="40"/>
+    </columnHeader>
+
+    <!-- Filled by AllowancesCalculationPdf: one employee per row. -->
+    <detail>
+        <band height="22"/>
+    </detail>
+
+    <pageFooter>
+        <band height="24">
+            <line>
+                <reportElement x="0" y="0" width="968" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="6" width="766" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Generated by FS-HRMS on " + $P{generatedAt}
+                    + ($P{generatedBy} == null || $P{generatedBy}.isEmpty() ? "" : " by " + $P{generatedBy})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="766" y="6" width="147" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="913" y="6" width="55" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Left"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <!-- Totals line (y 0–20) filled by AllowancesCalculationPdf; sign-off blocks below. -->
+    <summary>
+        <band height="84" splitType="Prevent">
+            <line>
+                <reportElement x="60" y="66" width="180" height="1" forecolor="#1A1714"/>
+            </line>
+            <staticText>
+                <reportElement x="60" y="68" width="180" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Prepared By]]></text>
+            </staticText>
+            <line>
+                <reportElement x="394" y="66" width="180" height="1" forecolor="#1A1714"/>
+            </line>
+            <staticText>
+                <reportElement x="394" y="68" width="180" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Checked By]]></text>
+            </staticText>
+            <line>
+                <reportElement x="728" y="66" width="180" height="1" forecolor="#1A1714"/>
+            </line>
+            <staticText>
+                <reportElement x="728" y="68" width="180" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Approved By]]></text>
+            </staticText>
+        </band>
+    </summary>
+</jasperReport>

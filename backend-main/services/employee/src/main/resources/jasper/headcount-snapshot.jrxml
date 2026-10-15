@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Headcount snapshot — active employees as of a point in time, broken
+  down by Department and by Grade. The datasource is already
+  pre-aggregated in Java (one row per category+key with its count); this
+  template groups those rows by $F{category} purely to render a section
+  break ("DEPARTMENT" / "GRADE") with a subtotal, matching the Tabular
+  master's section convention (see payroll's masters/tabular-register.jrxml
+  for the sibling pattern) — no change to the existing data shape needed.
+
+  Fixed Vellum print identity (not the app's live theme):
+    primary/accent  #9A2D2A   header rule + section titles + totals rule only
+    teal (unused here — no info callout on this report)
+    body text       #1A1714
+    label/secondary #4A413A
+    zebra stripe    #F8F4ED   alternates with #FFFFFF
+    border/rule     #E5DDD0
+  No filled table headers, no color-only meaning — every distinction is
+  also carried by bold weight, a border, or a text label, so the report
+  reads correctly in black & white.
+
+  Font: SansSerif (JVM logical font). The brief asks for Inter with
+  DejaVu Sans fallback; neither is registered as a JasperReports font
+  extension in this repo, so SansSerif is the safe equivalent used
+  project-wide. Every font declaration here is inline (no <style>
+  blocks) and avoids size 13 specifically — both were found empirically
+  to make this environment's PDF export silently drop the text (glyph
+  render came back blank while every other size/declaration style
+  rendered fine); matches the plain-inline convention already used by
+  every other payroll/employee jrxml in this repo.
+
+  Existing parameters/fields (companyName, asOf, totalActive, serial,
+  category, key, count) are HeadcountSnapshotReportService's contract —
+  do not rename. companyLogo / companyAddress / generatedBy /
+  generatedAt / reportTitle / reportPeriod are new and optional
+  (null-safe fallbacks below); the service can start passing them
+  whenever convenient without a template change.
+-->
+<jasperReport whenNoDataType="AllSectionsNoDetail" xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="headcount-snapshot" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-000000000030">
+
+    <style name="row.zebra" mode="Opaque" backcolor="#FFFFFF">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue() % 2 == 0)]]></conditionExpression>
+            <style backcolor="#F8F4ED"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyLogo"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="reportTitle"    class="java.lang.String"/>
+    <parameter name="reportPeriod"   class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+
+    <parameter name="asOf"         class="java.lang.String"/>
+    <parameter name="totalActive"  class="java.lang.Integer"/>
+
+    <field name="serial"   class="java.lang.Integer"/>
+    <field name="category" class="java.lang.String"/>
+    <field name="key"      class="java.lang.String"/>
+    <field name="count"    class="java.lang.Integer"/>
+
+    <variable name="categoryTotal" class="java.lang.Integer" resetType="Group" resetGroup="categoryGroup" calculation="Sum">
+        <variableExpression><![CDATA[$F{count}]]></variableExpression>
+    </variable>
+
+    <group name="categoryGroup">
+        <groupExpression><![CDATA[$F{category}]]></groupExpression>
+        <groupHeader>
+            <band height="24" splitType="Stretch">
+                <textField isBlankWhenNull="true">
+                    <reportElement x="0" y="8" width="555" height="16" forecolor="#9A2D2A"/>
+                    <box><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                    <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{category} + " BREAKDOWN"]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="20" splitType="Stretch">
+                <line>
+                    <reportElement x="425" y="0" width="130" height="1" forecolor="#E5DDD0"/>
+                </line>
+                <textField>
+                    <reportElement x="0" y="3" width="425" height="15" forecolor="#1A1714"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{category} + " Total"]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="425" y="3" width="130" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="4"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{categoryTotal}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupFooter>
+    </group>
+
+    <title>
+        <band height="82" splitType="Stretch">
+            <image onErrorType="Blank">
+                <reportElement x="0" y="0" width="44" height="32">
+                    <printWhenExpression><![CDATA[$P{companyLogo} != null && !$P{companyLogo}.isEmpty()]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{companyLogo}]]></imageExpression>
+            </image>
+            <textField isBlankWhenNull="true">
+                <reportElement x="56" y="0" width="499" height="16" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="56" y="17" width="499" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="56" y="36" width="499" height="20" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="14" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[($P{reportTitle} == null || $P{reportTitle}.isEmpty())
+                    ? "Headcount Snapshot" : $P{reportTitle}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="56" y="57" width="499" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[($P{reportPeriod} == null || $P{reportPeriod}.isEmpty())
+                    ? "As of " + (($P{asOf} == null || $P{asOf}.isEmpty()) ? "today" : $P{asOf})
+                    : $P{reportPeriod}]]></textFieldExpression>
+            </textField>
+
+            <line>
+                <reportElement x="0" y="76" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20">
+            <staticText>
+                <reportElement x="0" y="0" width="35" height="20" forecolor="#1A1714"/>
+                <box bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[#]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="35" y="0" width="390" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Group]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="425" y="0" width="130" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Headcount]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18" splitType="Stretch">
+            <textField>
+                <reportElement x="0" y="0" width="35" height="18" forecolor="#1A1714" style="row.zebra"/>
+                <box><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true">
+                <reportElement x="35" y="0" width="390" height="18" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{key}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="425" y="0" width="130" height="18" forecolor="#1A1714" style="row.zebra"/>
+                <box rightPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{count}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="28">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="6" width="380" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[
+                    (($P{generatedBy} == null || $P{generatedBy}.isEmpty()) ? "" : "Generated by: " + $P{generatedBy} + "   ")
+                    + (($P{generatedAt} == null || $P{generatedAt}.isEmpty()) ? "" : "Generated at: " + $P{generatedAt})
+                ]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="380" y="6" width="90" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="470" y="6" width="85" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="18" width="555" height="10" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <text><![CDATA[Confidential — For authorized use only]]></text>
+            </staticText>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="34" splitType="Stretch">
+            <line>
+                <reportElement x="0" y="0" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="0" y="6" width="380" height="20" forecolor="#1A1714"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                <text><![CDATA[TOTAL ACTIVE HEADCOUNT]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="390" y="6" width="165" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalActive}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

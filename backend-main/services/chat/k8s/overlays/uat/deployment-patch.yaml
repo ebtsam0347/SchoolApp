@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat
+  template:
+    spec:
+      containers:
+        - name: chat
+          resources:
+            requests:
+              cpu: null
+              memory: null
+            limits:
+              cpu: "1"
+              memory: 1Gi

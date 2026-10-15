@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+  labels:
+    app: chat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat
+  template:
+    metadata:
+      labels:
+        app: chat
+    spec:
+      containers:
+        - name: chat
+          image: chat
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8088
+            - name: mgmt
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: chat-config
+            - secretRef:
+                name: chat-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: mgmt
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: mgmt
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3

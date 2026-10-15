@@ -1,0 +1,314 @@
+spring:
+  application:
+    name: gateway
+  # §6.3 — multipart caps. Uploads normally use pre-signed PUTs straight
+  # to MinIO, so a multipart body at the gateway is unusual; the cap is
+  # belt-and-braces.
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+  # Gateway has no DB / JPA / Flyway of its own, but commons-core
+  # transitively brings spring-boot-starter-data-jpa onto the classpath.
+  # Without these excludes Spring would try to wire a Hikari datasource
+  # at startup and crash. (SB4 moved these autoconfigs into per-feature
+  # jars — note the package paths.)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          # Order matters — first match wins. Put more-specific routes
+          # (admin-audit, openapi proxies) before the catch-all /admin/**.
+          routes:
+            # --- OpenAPI spec proxies (single Swagger UI at the gateway) ---
+            - id: openapi-auth
+              uri: ${AUTH_BASE_URL:http://localhost:8081}
+              predicates:
+                - Path=/v3/api-docs/auth
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-audit
+              uri: ${AUDIT_BASE_URL:http://localhost:8085}
+              predicates:
+                - Path=/v3/api-docs/audit
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-employee
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/v3/api-docs/employee
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-attendance
+              uri: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/v3/api-docs/attendance
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-bff
+              uri: ${BFF_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/v3/api-docs/bff
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-notification
+              uri: ${NOTIFICATION_BASE_URL:http://localhost:8084}
+              predicates:
+                - Path=/v3/api-docs/notification
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-payroll
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/v3/api-docs/payroll
+              filters:
+                - SetPath=/v3/api-docs
+            - id: openapi-chat
+              uri: ${CHAT_BASE_URL:http://localhost:8088}
+              predicates:
+                - Path=/v3/api-docs/chat
+              filters:
+                - SetPath=/v3/api-docs
+
+            # --- BFF (page-shaped composites; routed before more-generic /admin/**) ---
+            - id: bff
+              uri: ${BFF_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/bff/**
+
+            # --- Reports (split between employee-service and payroll-service).
+            #     Specific /reports/employees/** + /reports/payroll/** must be
+            #     matched before /reports/jobs/** (which is generic and dispatched
+            #     to payroll for now — payroll owns the report_jobs table). ---
+            - id: reports-employee
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/reports/employees/**
+            - id: reports-attendance
+              uri: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/reports/attendance/**,/reports/leaves/**
+            - id: reports-payroll
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/reports/payroll/**,/reports/jobs/**
+
+            # --- Analytics (JSON aggregations powering /analytics dashboards). ---
+            - id: analytics-employee
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/analytics/employees/**
+            - id: analytics-attendance
+              uri: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/analytics/attendance/**,/analytics/leaves/**
+            - id: analytics-payroll
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/analytics/payroll/**
+
+            # --- Audit (specific admin path before auth's /admin/**) ---
+            - id: admin-audit
+              uri: ${AUDIT_BASE_URL:http://localhost:8085}
+              predicates:
+                - Path=/admin/audit/**
+            - id: audit
+              uri: ${AUDIT_BASE_URL:http://localhost:8085}
+              predicates:
+                - Path=/audit/**,/timeline/**
+
+            # --- Notification (specific admin path before auth's /admin/**) ---
+            - id: admin-notification
+              uri: ${NOTIFICATION_BASE_URL:http://localhost:8084}
+              predicates:
+                - Path=/admin/notifications/**
+            - id: notification
+              uri: ${NOTIFICATION_BASE_URL:http://localhost:8084}
+              predicates:
+                - Path=/notifications/**
+
+            # --- Chat (DMs, groups, broadcast, attachments, presence, typing) ---
+            - id: chat
+              uri: ${CHAT_BASE_URL:http://localhost:8088}
+              predicates:
+                - Path=/chat/**
+
+            # Cross-service combined inbox / history live in BFF. Must come
+            # before the generic /approvals/** route below — first match
+            # wins. Same shadowing issue as /approval-workflows below:
+            # payroll's and employee's own /approvals/history have no
+            # request-type path segment to disambiguate on (type is an
+            # optional query param), so direct-through-gateway access to
+            # those stays unreachable — same accepted limitation as
+            # /approval-delegations. FE and Swagger callers use these
+            # composite routes (or each service's own port directly) for
+            # the combined view.
+            - id: approvals-inbox-composite
+              uri: ${BFF_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/approvals/inbox
+              filters:
+                - RewritePath=/approvals/inbox, /bff/approvals/inbox
+            - id: approvals-history-composite
+              uri: ${BFF_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/approvals/history
+              filters:
+                - RewritePath=/approvals/history, /bff/approvals/history
+
+            # attendance, employee, and payroll each mount their own copy of
+            # the commons-approval engine, so no single service can answer
+            # the bare "list every configured chain" call — BFF fans out and
+            # merges. Exact match (no /**) so it doesn't shadow the
+            # per-request-type routes below. Must come before all of them.
+            - id: approval-workflows-composite
+              uri: ${BFF_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/approval-workflows
+              filters:
+                - RewritePath=/approval-workflows, /bff/approval-workflows
+
+            # Employee's requisition/factory-tour chain config and payroll's
+            # advance chain config share the generic /approval-workflows path
+            # with attendance's own chain (same commons-approval engine,
+            # mounted per service). Route by each service's known request
+            # types before the attendance catch-all below claims the whole
+            # prefix — same technique as payroll-employee-subpaths. NOTE:
+            # /approval-delegations has no request-type segment in the URL
+            # (it's a body field), so it can't be disambiguated this way —
+            # employee/payroll delegation calls still resolve to attendance
+            # until that's addressed separately.
+            - id: employee-approval-workflows
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/approval-workflows/REQUISITION_NEW_HIRE,/approval-workflows/REQUISITION_REPLACEMENT,/approval-workflows/FACTORY_TOUR_LOCAL,/approval-workflows/FACTORY_TOUR_INTL,/approval-workflows/TRAVEL_REQUEST,/approval-workflows/TRAVEL_ADVANCE,/approval-workflows/TRAVEL_SETTLEMENT
+            - id: payroll-approval-workflows
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/approval-workflows/PERMANENT_ADVANCE,/approval-workflows/SHORT_TERM_ADVANCE
+
+            # --- Attendance (punches, leaves, OT, regularization, holidays, shifts, delegations,
+            #     biometric devices + templates for HR catalog UI and the poller sidecar) ---
+            - id: attendance
+              uri: ${ATTENDANCE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/attendance/**,/leaves/**,/short-leaves/**,/overtime/**,/regularizations/**,/holidays/**,/shifts/**,/approval-delegations/**,/approval-workflows/**,/approvals/**,/devices/**,/templates/**,/canteen/**
+
+            # --- Payroll (compensation, runs, payslips, off-cycle, bonuses, settlement) ---
+            # Specific /employees/{id}/<payroll-thing> paths must be matched
+            # BEFORE the generic /employees/** route below — first match wins.
+            - id: payroll-employee-subpaths
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/employees/*/salary-components/**,/employees/*/payroll-settings,/employees/*/bank-details,/employees/*/off-cycle-payments
+            # Back-compat alias: the employee picker moved to employee-service
+            # (auth-only, service-neutral). Old FE calls to
+            # /payroll/employees/picker rewrite to /employees/picker so the
+            # response is unchanged from the caller's perspective. Must come
+            # before the generic /payroll/** route.
+            - id: payroll-picker-alias
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/payroll/employees/picker
+              filters:
+                - RewritePath=/payroll/employees/picker, /employees/picker
+            - id: payroll
+              uri: ${PAYROLL_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/payroll/**,/payslips/**,/salary/**,/off-cycle-payments/**,/bonuses/**,/gratuity/**,/settlement/**,/fiscal-years/**,/banks/**,/permanent-advances/**,/short-term-advance-batches/**,/allowance-run/**,/allowances/**,/annual-leave/**
+
+            # --- Employee (org structure, catalogs, employees, ESS) ---
+            - id: employee
+              uri: ${EMPLOYEE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/employees/**,/departments/**,/sections/**,/designations/**,/grades/**,/skills/**,/qualifications/**,/provinces/**,/cities/**,/disabilities/**,/disciplinary-actions/**,/off-cycle-payment-types/**,/certifications/**,/sagas/**,/religions/**,/requisitions/**,/belonging-master/**,/belonging-issuance/**,/factory-tours/**,/travel/**
+
+            # --- Auth (and auth-owned admin namespace) ---
+            - id: auth
+              uri: ${AUTH_BASE_URL:http://localhost:8081}
+              predicates:
+                - Path=/auth/**
+            - id: auth-admin
+              uri: ${AUTH_BASE_URL:http://localhost:8081}
+              predicates:
+                - Path=/admin/**
+
+server:
+  port: 8080
+  # §6.3 — request-size limits at the edge.
+  # form-post: 1 MiB (we don't accept anything bigger anywhere).
+  # max-swallow-size = 32 MiB lets Tomcat drain a slightly-over multipart
+  # body cleanly without RST'ing the connection.
+  tomcat:
+    max-http-form-post-size: 1MB
+    max-swallow-size: 32MB
+
+# Aggregated Swagger UI. Each entry below is a path served by the
+# gateway itself (proxied to the real service via the openapi-*
+# routes above). The dropdown in /swagger-ui.html picks between them.
+# `disable-swagger-default-url: true` (in commons-web defaults) ensures
+# the gateway's own empty /v3/api-docs doesn't show up as a fallback.
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Auth
+        url: /v3/api-docs/auth
+      - name: Audit
+        url: /v3/api-docs/audit
+      - name: Employee
+        url: /v3/api-docs/employee
+      - name: Attendance
+        url: /v3/api-docs/attendance
+      - name: BFF
+        url: /v3/api-docs/bff
+      - name: Notification
+        url: /v3/api-docs/notification
+      - name: Payroll
+        url: /v3/api-docs/payroll
+      - name: Chat
+        url: /v3/api-docs/chat
+
+hrms:
+  security:
+    # The gateway is the only service that parses JWTs. Every other service
+    # runs in header-identity mode (default in commons-web) and trusts the
+    # X-User-* headers the gateway injects after a successful JWT check.
+    identity-source: jwt
+  gateway:
+    # Per-caller bucket on GET /bff/search only — palette is keystroke-driven.
+    # Capacity = burst, refill = refill-per-second tokens/s. In-process map
+    # keyed on the JWT-validated user id; if we ever scale the gateway out
+    # horizontally, swap the inner state for a Redis Lua script.
+    search-rate-limit:
+      enabled: true
+      refill-per-second: 10
+      burst: 20
+    cors:
+      # Frontend origins. Defaults are dev-only (Vite, Next.js). Override
+      # per environment via env, e.g.
+      #   HRMS_GATEWAY_CORS_ALLOWED_ORIGINS=https://hrms.forwardsports.com
+      allowed-origins: ${HRMS_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+      # Pattern allowlist — needed because allowCredentials=true forbids "*"
+      # in allowed-origins. Lets any localhost port (Vite's auto-fallback to
+      # 5174/5175 etc.) work in dev without thrashing the static allowlist.
+      # Empty in UAT/prod via env override.
+      allowed-origin-patterns: ${HRMS_GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:[*],http://127.0.0.1:[*]}
+      allow-credentials: true
+  openapi:
+    # Gateway doesn't generate its own spec, but commons-web's autoconfig
+    # still runs. Disable it so the empty OpenAPI bean doesn't get built.
+    enabled: false
+  jwt:
+    issuer: fshrms-auth
+    audience: fshrms
+    # Same dev keypair every service uses; override per environment.
+    public-key-location: ${HRMS_JWT_PUBLIC_KEY_LOCATION:classpath:dev-keys/jwt-public.pem}
+

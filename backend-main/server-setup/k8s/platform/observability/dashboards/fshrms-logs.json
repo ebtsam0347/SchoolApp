@@ -1,0 +1,202 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "FSHRMS log explorer (Loki). Filter by service, level, free text. traceId is clickable to Zipkin.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    { "title": "Overview", "url": "/d/fshrms-overview", "type": "link", "icon": "dashboard" },
+    { "title": "Service detail", "url": "/d/fshrms-service-detail", "type": "link", "icon": "dashboard" }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Volume",
+      "id": 1,
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum(count_over_time({namespace=\"$ns\", app=~\"$service\"}[$__range]))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "graphMode": "area", "colorMode": "none", "textMode": "value" }
+    },
+    {
+      "type": "stat",
+      "title": "ERRORs",
+      "id": 2,
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum(count_over_time({namespace=\"$ns\", app=~\"$service\"} | json | level=\"ERROR\" [$__range]))" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 } ] }
+        }, "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "graphMode": "area", "colorMode": "background", "textMode": "value" }
+    },
+    {
+      "type": "stat",
+      "title": "WARNs",
+      "id": 3,
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum(count_over_time({namespace=\"$ns\", app=~\"$service\"} | json | level=\"WARN\" [$__range]))" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 50 } ] }
+        }, "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "graphMode": "area", "colorMode": "background", "textMode": "value" }
+    },
+    {
+      "type": "stat",
+      "title": "Active services",
+      "id": 4,
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "count(sum by (app) (count_over_time({namespace=\"$ns\", app=~\"$service\"}[$__range])))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "graphMode": "none", "colorMode": "none", "textMode": "value" }
+    },
+    {
+      "type": "timeseries",
+      "title": "Log rate by level",
+      "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (level) (rate({namespace=\"$ns\", app=~\"$service\"} | json [$__auto]))", "legendFormat": "{{level}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "logs", "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 0, "stacking": { "mode": "normal", "group": "A" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ERROR" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "WARN" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } } ] },
+          { "matcher": { "id": "byName", "options": "INFO" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "DEBUG" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Log rate by service",
+      "id": 6,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (app) (rate({namespace=\"$ns\", app=~\"$service\"}[$__auto]))", "legendFormat": "{{app}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "logs", "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 1, "stacking": { "mode": "normal", "group": "A" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "type": "logs",
+      "title": "Live tail",
+      "id": 7,
+      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{namespace=\"$ns\", app=~\"$service\"} | json | level=~\"$level\" |~ \"$search\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["fshrms"],
+  "templating": {
+    "list": [
+      {
+        "name": "ns",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(up{job=~\"auth|audit|employee|attendance|payroll|notification|chat|gateway|bff\"}, namespace)", "refId": "ns" },
+        "refresh": 1,
+        "current": { "selected": false, "text": "uat", "value": "uat" },
+        "multi": false,
+        "includeAll": false
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(up{namespace=\"$ns\", job=~\"auth|audit|employee|attendance|payroll|notification|chat|gateway|bff\"}, service)", "refId": "service" },
+        "refresh": 1,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+"
+      },
+      {
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "query": "DEBUG,INFO,WARN,ERROR",
+        "current": { "selected": true, "text": ["INFO", "WARN", "ERROR"], "value": ["INFO", "WARN", "ERROR"] },
+        "options": [
+          { "selected": false, "text": "DEBUG", "value": "DEBUG" },
+          { "selected": true, "text": "INFO", "value": "INFO" },
+          { "selected": true, "text": "WARN", "value": "WARN" },
+          { "selected": true, "text": "ERROR", "value": "ERROR" }
+        ],
+        "multi": true,
+        "includeAll": true,
+        "allValue": "DEBUG|INFO|WARN|ERROR"
+      },
+      {
+        "name": "search",
+        "label": "Search (regex)",
+        "type": "textbox",
+        "current": { "selected": false, "text": "", "value": "" }
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Karachi",
+  "title": "FSHRMS — Logs",
+  "uid": "fshrms-logs",
+  "version": 1,
+  "weekStart": ""
+}

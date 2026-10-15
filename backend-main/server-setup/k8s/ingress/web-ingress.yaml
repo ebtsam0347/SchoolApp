@@ -1,0 +1,73 @@
+# Traefik IngressRoutes for the React frontend (`web`) and a direct route to
+# the API gateway. ENV_NAME_PLACEHOLDER, APP_HOST_PLACEHOLDER and
+# API_HOST_PLACEHOLDER are substituted by scripts/06-platform-up.sh.
+#
+# TLS IS NOT TERMINATED HERE, in either environment.
+#
+# Prod sits behind the company cPanel host (65.98.127.106), which owns the
+# public A record for hrms.forward.pk, holds the AutoSSL certificate, and
+# reverse-proxies inward over a high port with an .htaccess rule:
+#
+#   RewriteRule ^\.well-known/ - [L]           # must precede the proxy rule
+#   RewriteCond %{HTTPS} off
+#   RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+#   RewriteRule ^(.*)$ http://125.209.66.227:5000/$1 [P,L]
+#
+# The .well-known exclusion is load-bearing: without it the catch-all proxies
+# AutoSSL's own ACME challenge into the cluster, which 404s, and the
+# certificate silently fails to renew ~60 days later.
+#
+# Same pattern already serving sialkotfootballacademy.pk. The office end never
+# needs 80 or 443 open — one high port forwarded to this node is enough, and it
+# should be firewalled to the cPanel host's IP.
+#
+# UAT is LAN-only on *.uat.hrms.local and never had a certificate either.
+#
+# Why no in-cluster TLS and no ACME: Let's Encrypt HTTP-01 validates from the
+# public internet on port 80, which this host does not expose; DNS-01 has no
+# cert-manager solver for mysecurecloudhost. cPanel's AutoSSL already solves
+# this for us, because the public A record points at cPanel, not here.
+#
+# Why the prod app route matches on path, not Host: Apache/LiteSpeed `[P]` rewrites
+# cannot set ProxyPreserveHost from .htaccess, so the Host header arriving here
+# may read `125.209.66.227:<PORT>` rather than the public name. A Host() rule
+# would silently 404 on every proxied request. PathPrefix(`/`) is
+# Host-agnostic and this cluster serves exactly one public app.
+---
+# Direct gateway access by hostname — Postman, curl, Swagger UI. Reachable on
+# the LAN via /etc/hosts; not published through cPanel, since the frontend
+# proxies /api/ to the gateway in-cluster (VITE_API_BASE=/api) and needs no
+# second public hostname. Host() outranks the catch-all below on rule length,
+# so this wins whenever the header survives.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: gateway
+  namespace: ENV_NAME_PLACEHOLDER
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`API_HOST_PLACEHOLDER`)
+      kind: Rule
+      services:
+        - name: gateway
+          port: 8080
+---
+# The app itself. On prod this is a Host-agnostic catch-all so cPanel-proxied
+# traffic matches whatever Host header survives the [P] rewrite; every other
+# env keeps a normal Host() rule, since nothing proxies into it and a catch-all
+# there would quietly make this service the default backend for the whole node.
+# 06-platform-up.sh picks the rule and substitutes WEB_MATCH_PLACEHOLDER.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: web
+  namespace: ENV_NAME_PLACEHOLDER
+spec:
+  entryPoints: [web]
+  routes:
+    - match: WEB_MATCH_PLACEHOLDER
+      kind: Rule
+      services:
+        - name: web
+          port: 80

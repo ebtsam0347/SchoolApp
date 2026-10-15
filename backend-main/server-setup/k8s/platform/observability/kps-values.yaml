@@ -1,0 +1,149 @@
+# kube-prometheus-stack values for the FSHRMS observability stack.
+# Sized for a single-VM dual-env (uat + prod) deployment, ~62 GiB RAM total.
+
+# --- Prometheus operator + admission webhook ---
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m,  memory: 128Mi }
+    limits:   { cpu: 200m, memory: 256Mi }
+
+# --- Prometheus server ---
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: "8GiB"
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    # Discover ServiceMonitors / PodMonitors from any namespace.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests: { cpu: 200m, memory: 1Gi  }
+      limits:   { cpu: "2",  memory: 3Gi  }
+
+# --- Alertmanager ---
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    resources:
+      requests: { cpu: 20m,  memory: 64Mi  }
+      limits:   { cpu: 100m, memory: 256Mi }
+
+# --- Grafana ---
+grafana:
+  adminPassword: "${GRAFANA_ADMIN_PASSWORD}"  # overridden via --set on the CLI
+  defaultDashboardsTimezone: "Asia/Karachi"
+  # Drop the 25 bundled kube-prometheus-stack dashboards (apiserver, coredns,
+  # multicluster, k8s-resources-*, namespace-by-pod, nodes-aix, nodes-darwin,
+  # workload-total, etc). They overwhelm the dashboard list and almost none
+  # are useful for our developers — node-exporter and a single FSHRMS
+  # overview cover what we actually look at. If a platform issue ever needs
+  # them, flip back to true on a one-off install.
+  defaultDashboardsEnabled: false
+  # Skip the busybox init that recursively chowns /var/lib/grafana — it
+  # fails on a re-deploy after Grafana has already populated subdirs
+  # (pdf/png/csv) with different perms, and we don't change the runtime
+  # UID across upgrades anyway.
+  initChownData:
+    enabled: false
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m,  memory: 128Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  # Sidecar that loads dashboards from every ConfigMap labelled
+  # `grafana_dashboard=1`. Stays cluster-wide so dashboards can live in
+  # any namespace alongside whatever ships them.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  # Loki + Zipkin datasources, in their own provisioning file so we can
+  # use `deleteDatasources` to force-replace rows whose UIDs were
+  # auto-generated on first install. Without that directive Grafana keeps
+  # the original UID across helm upgrades, breaking cross-datasource
+  # links from dashboards/derivedFields. With it, our pinned `loki`/
+  # `zipkin` UIDs survive cluster rebuilds.
+  datasources:
+    fshrms-datasources.yaml:
+      apiVersion: 1
+      deleteDatasources:
+        - { name: Loki, orgId: 1 }
+        - { name: Zipkin, orgId: 1 }
+      datasources:
+        - name: Loki
+          uid: loki
+          type: loki
+          access: proxy
+          url: http://loki.observability.svc.cluster.local:3100
+          jsonData:
+            # Spring Boot 4 logstash-format JSON logs include `traceId`/`spanId`
+            # fields; surface them as clickable Grafana fields that open the
+            # matching Zipkin trace.
+            derivedFields:
+              - name: traceId
+                matcherRegex: '"traceId"\s*:\s*"(\w+)"'
+                url: '$${__value.raw}'
+                datasourceUid: zipkin
+                urlDisplayLabel: View trace
+              - name: spanId
+                matcherRegex: '"spanId"\s*:\s*"(\w+)"'
+                url: ''
+        - name: Zipkin
+          uid: zipkin
+          type: zipkin
+          access: proxy
+          url: http://zipkin.observability.svc.cluster.local:9411
+          jsonData:
+            # When viewing a Zipkin trace, a "Logs for this span" button
+            # opens Loki filtered by the trace ID across all FSHRMS namespaces.
+            tracesToLogsV2:
+              datasourceUid: loki
+              spanStartTimeShift: -2m
+              spanEndTimeShift: 2m
+              filterByTraceID: true
+              customQuery: true
+              query: '{namespace=~"uat|prod"} |~ "$${__trace.traceId}"'
+
+# --- node-exporter (one per node, daemonset) ---
+nodeExporter:
+  enabled: true
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits:   { cpu: 100m, memory: 64Mi }
+
+# --- kube-state-metrics ---
+kube-state-metrics:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi  }
+    limits:   { cpu: 200m, memory: 128Mi }
+
+# --- k3s component scrape: disable upstream targets that k3s doesn't expose ---
+kubeControllerManager: { enabled: false }
+kubeScheduler:         { enabled: false }
+kubeEtcd:              { enabled: false }
+kubeProxy:             { enabled: false }

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: employee
+  template:
+    spec:
+      containers:
+        - name: employee
+          resources:
+            requests:
+              cpu: null
+              memory: null
+            limits:
+              cpu: "1"
+              memory: 1Gi

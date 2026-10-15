@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bank transfer letter — one PDF per payroll run, addressed to the
+  company's disbursing bank, requesting salary credit to each employee's
+  account. Letter body (title band) prints once; the employee table
+  header repeats on every page via columnHeader so a large headcount
+  still reads cleanly across pages; totals + signature block print once
+  at the end via summary.
+
+  Letterhead follows masters/formal-letter.jrxml (logo top-left, company
+  name/address top-right, thin #9A2D2A rule); the embedded table follows
+  masters/tabular-register.jrxml (bold black headers + vermillion bottom
+  rule, cream/white zebra, no solid color fills) — this is the two
+  master categories combined, since the document is both a letter and a
+  register. Driven by header parameters (letter/bank/company info +
+  totals) + a JRMapCollectionDataSource of per-employee rows (fields
+  below). Money values arrive as pre-formatted strings.
+  One template for every bank transfer letter (salary A6, temporary
+  advance B6, bonus E5): letterTitle / subjectText / purposeText carry the
+  wording. Filled by AccountsDocumentService.
+-->
+<jasperReport whenNoDataType="AllSectionsNoDetail" xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="bank-transfer-letter" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-000000000030">
+
+    <style name="row.zebra" mode="Opaque" backcolor="#FFFFFF">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue() % 2 == 0)]]></conditionExpression>
+            <style backcolor="#F8F4ED"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="companyName"          class="java.lang.String"/>
+    <parameter name="companyAddress"       class="java.lang.String"/>
+    <parameter name="logoPath"             class="java.lang.String"/>
+    <parameter name="letterRefNo"          class="java.lang.String"/>
+    <parameter name="letterDate"           class="java.lang.String"/>
+
+    <parameter name="bankName"             class="java.lang.String"/>
+    <parameter name="bankBranch"           class="java.lang.String"/>
+    <parameter name="bankAddress"          class="java.lang.String"/>
+
+    <parameter name="periodLabel"          class="java.lang.String"/>
+    <parameter name="letterTitle"          class="java.lang.String"/>
+    <parameter name="subjectText"          class="java.lang.String"/>
+    <parameter name="purposeText"          class="java.lang.String"/>
+    <parameter name="companyAccountTitle"  class="java.lang.String"/>
+    <parameter name="companyAccountNumber" class="java.lang.String"/>
+
+    <parameter name="totalCount"           class="java.lang.Integer"/>
+    <parameter name="totalAmountText"      class="java.lang.String"/>
+    <parameter name="totalAmountWords"     class="java.lang.String"/>
+
+    <parameter name="preparedByName"       class="java.lang.String"/>
+    <parameter name="preparedByDesignation" class="java.lang.String"/>
+    <parameter name="generatedAt"          class="java.lang.String"/>
+    <parameter name="generatedBy"          class="java.lang.String"/>
+
+    <field name="serial"            class="java.lang.Integer"/>
+    <field name="employeeCode"      class="java.lang.String"/>
+    <field name="employeeName"      class="java.lang.String"/>
+    <field name="fatherName"        class="java.lang.String"/>
+    <field name="accountNumberText" class="java.lang.String"/>
+    <field name="amountText"        class="java.lang.String"/>
+
+    <title>
+        <band height="284" splitType="Stretch">
+            <image onErrorType="Blank">
+                <reportElement x="0" y="0" width="60" height="40">
+                    <printWhenExpression><![CDATA[$P{logoPath} != null && !$P{logoPath}.isEmpty()]]></printWhenExpression>
+                </reportElement>
+                <imageExpression><![CDATA[$P{logoPath}]]></imageExpression>
+            </image>
+            <textField>
+                <reportElement x="205" y="0" width="350" height="18" forecolor="#1A1714"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="13" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="205" y="19" width="350" height="20" forecolor="#4A413A"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="44" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+
+            <textField>
+                <reportElement x="0" y="54" width="555" height="14" forecolor="#1A1714"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{letterTitle} == null ? "SALARY BANK TRANSFER LETTER" : $P{letterTitle}]]></textFieldExpression>
+            </textField>
+
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="76" width="275" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{letterRefNo} == null || $P{letterRefNo}.isEmpty() ? null : "Ref: " + $P{letterRefNo}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="275" y="76" width="280" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Date: " + $P{letterDate}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="0" y="98" width="200" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <text><![CDATA[The Branch Manager,]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="0" y="112" width="400" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{bankName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="126" width="400" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{bankBranch}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="140" width="555" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{bankAddress}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="162" width="555" height="16" forecolor="#9A2D2A"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Subject: " + ($P{subjectText} == null
+                    ? "Salary Transfer for the Month of " + $P{periodLabel} : $P{subjectText})]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="0" y="182" width="555" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <text><![CDATA[Dear Sir/Madam,]]></text>
+            </staticText>
+
+            <textField isStretchWithOverflow="true">
+                <reportElement x="0" y="198" width="555" height="60" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[
+                    "Please arrange to credit the "
+                    + ($P{purposeText} == null ? "net salary for the month of " + $P{periodLabel} : $P{purposeText})
+                    + " to the accounts of the following " + $P{totalCount} + " employee(s), by debiting our "
+                    + "account no. " + $P{companyAccountNumber}
+                    + ($P{companyAccountTitle} == null || $P{companyAccountTitle}.isEmpty()
+                        ? "" : " (" + $P{companyAccountTitle} + ")")
+                    + " maintained with you, as per the details below:"
+                ]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="22">
+            <staticText>
+                <reportElement x="0" y="0" width="25" height="20" forecolor="#1A1714"/>
+                <box bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[S.No]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="25" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Card No]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="85" y="0" width="150" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Employee Name]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="235" y="0" width="140" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Father Name]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="375" y="0" width="115" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Bank Account No.]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="490" y="0" width="65" height="20" forecolor="#1A1714"/>
+                <box rightPadding="6" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Amount (Rs)]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18">
+            <textField>
+                <reportElement x="0" y="0" width="25" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{serial}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="25" y="0" width="60" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{employeeCode}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="85" y="0" width="150" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="235" y="0" width="140" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{fatherName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="375" y="0" width="115" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{accountNumberText}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="490" y="0" width="65" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box rightPadding="6"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{amountText}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="24">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="6" width="400" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Generated by FS-HRMS on " + $P{generatedAt}
+                    + ($P{generatedBy} == null || $P{generatedBy}.isEmpty() ? "" : " by " + $P{generatedBy})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="400" y="6" width="75" height="14" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="475" y="6" width="80" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="184" splitType="Stretch">
+            <line>
+                <reportElement x="0" y="0" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="0" y="4" width="490" height="16" forecolor="#1A1714"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[TOTAL]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="490" y="4" width="65" height="16" forecolor="#1A1714"/>
+                <box rightPadding="6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalAmountText}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="26" width="555" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="8" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Amount in words: " + $P{totalAmountWords}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="40" width="555" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="8" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalCount} + " employee(s) listed above."]]></textFieldExpression>
+            </textField>
+
+            <textField isStretchWithOverflow="true">
+                <reportElement x="0" y="60" width="555" height="40" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[
+                    "We confirm that the above particulars are correct and request you to process the "
+                    + "transfer accordingly. Kindly acknowledge receipt of this letter.\n\n"
+                    + "Thanking you,\nYours sincerely,"
+                ]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="118" width="250" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["For " + $P{companyName}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="152" width="180" height="1" forecolor="#1A1714"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="154" width="250" height="14" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{preparedByName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="166" width="250" height="10" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{preparedByDesignation}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

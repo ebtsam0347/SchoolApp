@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: attendance
+  labels:
+    app: attendance
+    release: kps
+spec:
+  selector:
+    matchLabels:
+      app: attendance
+  endpoints:
+    - port: mgmt
+      path: /actuator/prometheus
+      interval: 30s

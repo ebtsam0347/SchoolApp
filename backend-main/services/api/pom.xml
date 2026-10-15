@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forward.hrms</groupId>
+        <artifactId>services</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>api</artifactId>
+    <name>api</name>
+    <description>Shared response-DTO contract published to in-monorepo consumers (BFF + producing services). One module instead of one per service: this codebase is single-team, lockstep deploys; the per-service split bought no real isolation and added pom overhead. Service-side mappers from JPA entities to these records live in each service's own dto/response package.</description>
+
+    <dependencies>
+        <!-- Jackson 2 (default) for almost everything. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!--
+          Jackson 3 (tools.jackson) for AuditEventDto's freeform JsonNode
+          fields — Spring Boot 4 picked Jackson 3 as the response mapper
+          and audit's DTO leans into that so JsonNode serializes cleanly
+          instead of falling back to bean introspection.
+        -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!--
+          springdoc transitively manages swagger-annotations-jakarta;
+          the api module doesn't depend on the springdoc starter
+          (Spring-coupled), so pin the version explicitly. Bump
+          alongside springdoc.
+        -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+            <version>2.2.47</version>
+        </dependency>
+    </dependencies>
+</project>

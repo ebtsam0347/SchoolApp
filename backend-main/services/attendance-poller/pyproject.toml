@@ -1,0 +1,43 @@
+[project]
+name = "attendance-poller"
+version = "0.1.0"
+description = "FSHRMS attendance device poller — fetches punches from ZKTeco devices over the ZK protocol and forwards them to the attendance service."
+requires-python = ">=3.13"
+dependencies = [
+    "pyzk>=0.9",
+    "httpx>=0.28",
+]
+
+[project.scripts]
+attendance-poller-dump = "attendance_poller.dump:main"
+attendance-poller-pull = "attendance_poller.pull:main"
+attendance-poller-sync = "attendance_poller.sync:main"
+attendance-poller-doctrine = "attendance_poller.doctrine:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/attendance_poller"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src"]
+
+[tool.ruff.lint]
+# §5.5 doctrine: server, JVM, DB and the poller all run TZ=Asia/Karachi.
+# Naive `datetime.now()` is the correct call — it returns wall-clock PKT.
+# Ruff's flake8-datetimez (DTZ) rules push the OPPOSITE convention
+# (force tz-aware datetimes), so they're explicitly NOT selected.
+# The actual ban on `datetime.now(tz=...)` and `astimezone(...)` is
+# enforced by `attendance-poller-doctrine` (src/attendance_poller/
+# doctrine.py) which is run from CI.
+select = ["E", "F", "W", "B"]
+ignore = []

@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - sealed-secret.yaml
+
+configMapGenerator:
+  - name: gateway-config
+    behavior: merge
+    literals:
+      - HRMS_OPENAPI_SERVER_URL=https://hrms.forward.pk/api
+      - DB_NAME=prod
+      # Browsers send an Origin header on every cross-origin AND same-origin
+      # non-GET request, so without this the gateway's CORS filter rejects
+      # every login POST from the browser with 403 "Invalid CORS request"
+      # while curl (which sends no Origin) still gets through. The defaults
+      # in application.yml are localhost-only and dev-oriented.
+      - HRMS_GATEWAY_CORS_ALLOWED_ORIGINS=https://hrms.forward.pk,https://www.hrms.forward.pk
+      # Empty: the localhost patterns are a dev convenience and must not be
+      # allowed in prod. An empty list makes SecurityConfig skip the call.
+      - HRMS_GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS=
+
+images:
+  - name: gateway
+    newName: 10.10.100.51:5001/gateway
+    newTag: "GIT_SHA_PLACEHOLDER"
+
+patches:
+  - path: deployment-patch.yaml

@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Compact payslip sheet: three slips per A4 for bulk printing, separated by a
+  dashed cut line. Filled by PayslipPdfService.renderSheet with one data row
+  per earnings/deductions line; every slip is padded (or folded into
+  "Others") to exactly SHEET_ROWS rows, so each slip is the same 270pt tall
+  and three of them fill the 822pt body exactly.
+
+  Group header = letterhead + employee + attendance + table header; detail =
+  one line row; group footer = totals + net + cut line. Per-slip values are
+  fields (repeated on every row of the slip), not parameters.
+  Brand color #9A2D2A on the accent bar, section heads and the net bar only.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="payslip-sheet" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="10" bottomMargin="10"
+              uuid="9c5c3d36-1234-4abc-8000-000000000003">
+
+    <style name="label" forecolor="#8A8079" fontName="SansSerif" fontSize="5.5" isBold="true" pdfFontName="Helvetica-Bold"/>
+    <style name="value" forecolor="#1A1714" fontName="SansSerif" fontSize="8.5"/>
+    <style name="cell" forecolor="#1A1714" fontName="SansSerif" fontSize="8" markup="styled" vTextAlign="Middle"/>
+    <style name="line" forecolor="#1A1714" fontName="SansSerif" fontSize="8" vTextAlign="Middle"/>
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+
+    <field name="slipNo"             class="java.lang.Integer"/>
+    <field name="periodText"         class="java.lang.String"/>
+    <field name="fiscalYear"         class="java.lang.String"/>
+    <field name="heldBanner"         class="java.lang.String"/>
+    <field name="employeeCode"       class="java.lang.String"/>
+    <field name="employeeName"       class="java.lang.String"/>
+    <field name="fatherName"         class="java.lang.String"/>
+    <field name="designation"        class="java.lang.String"/>
+    <field name="department"         class="java.lang.String"/>
+    <field name="bankName"           class="java.lang.String"/>
+    <field name="bankAccount"        class="java.lang.String"/>
+    <field name="advanceBalanceText" class="java.lang.String"/>
+    <field name="workingDaysText"    class="java.lang.String"/>
+    <field name="daysWorkedText"     class="java.lang.String"/>
+    <field name="presentDaysText"    class="java.lang.String"/>
+    <field name="absentDaysText"     class="java.lang.String"/>
+    <field name="paidLeaveDaysText"  class="java.lang.String"/>
+    <field name="overtimeHoursText"  class="java.lang.String"/>
+    <field name="grossSalaryText"    class="java.lang.String"/>
+    <field name="totalDeductionText" class="java.lang.String"/>
+    <field name="netSalaryText"      class="java.lang.String"/>
+    <field name="netSalaryWords"     class="java.lang.String"/>
+    <field name="earningName"         class="java.lang.String"/>
+    <field name="earningAmountText"   class="java.lang.String"/>
+    <field name="deductionName"       class="java.lang.String"/>
+    <field name="deductionAmountText" class="java.lang.String"/>
+
+    <group name="slip" keepTogether="true" minHeightToStartNewPage="270">
+        <groupExpression><![CDATA[$F{slipNo}]]></groupExpression>
+        <groupHeader>
+            <band height="126" splitType="Prevent">
+                <!-- ===== Letterhead ===== -->
+                <rectangle>
+                    <reportElement x="0" y="0" width="555" height="2" backcolor="#9A2D2A" mode="Opaque"/>
+                    <graphicElement><pen lineWidth="0"/></graphicElement>
+                </rectangle>
+                <textField>
+                    <reportElement x="0" y="7" width="180" height="16" forecolor="#1A1714"/>
+                    <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="12" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="0" y="23" width="180" height="11" forecolor="#6B625A"/>
+                    <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                    <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+                </textField>
+                <!-- Held: short banner only; the free-text reason doesn't fit a third of a page. -->
+                <staticText>
+                    <reportElement x="190" y="12" width="175" height="16" forecolor="#991B1B" backcolor="#FDECEC" mode="Opaque">
+                        <printWhenExpression><![CDATA[$F{heldBanner} != null && !$F{heldBanner}.isEmpty()]]></printWhenExpression>
+                    </reportElement>
+                    <box><pen lineWidth="0.75" lineColor="#991B1B"/></box>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <text><![CDATA[AMOUNT HELD — NOT DISBURSED]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="375" y="5" width="180" height="12" forecolor="#9A2D2A"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <text><![CDATA[SALARY SLIP]]></text>
+                </staticText>
+                <textField>
+                    <reportElement x="375" y="17" width="180" height="14" forecolor="#1A1714"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$F{periodText}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="375" y="31" width="180" height="9" forecolor="#6B625A"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="6.5"/></textElement>
+                    <textFieldExpression><![CDATA[$F{fiscalYear} == null ? null : "Fiscal Year " + $F{fiscalYear}]]></textFieldExpression>
+                </textField>
+                <line>
+                    <reportElement x="0" y="43" width="555" height="1" forecolor="#9A2D2A"/>
+                    <graphicElement><pen lineWidth="0.75"/></graphicElement>
+                </line>
+
+                <!-- ===== Employee ===== -->
+                <staticText><reportElement style="label" x="0"   y="48" width="135" height="8"/><text><![CDATA[CARD NO.]]></text></staticText>
+                <textField><reportElement style="value" x="0"   y="56" width="135" height="12"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{employeeCode}]]></textFieldExpression></textField>
+                <staticText><reportElement style="label" x="139" y="48" width="274" height="8"/><text><![CDATA[EMPLOYEE NAME]]></text></staticText>
+                <textField><reportElement style="value" x="139" y="56" width="274" height="12"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
+                <staticText><reportElement style="label" x="417" y="48" width="138" height="8"/><text><![CDATA[FATHER NAME]]></text></staticText>
+                <textField><reportElement style="value" x="417" y="56" width="138" height="12"/><textFieldExpression><![CDATA[$F{fatherName}]]></textFieldExpression></textField>
+
+                <staticText><reportElement style="label" x="0"   y="71" width="135" height="8"/><text><![CDATA[DESIGNATION]]></text></staticText>
+                <textField><reportElement style="value" x="0"   y="79" width="135" height="12"/><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+                <staticText><reportElement style="label" x="139" y="71" width="135" height="8"/><text><![CDATA[DEPARTMENT]]></text></staticText>
+                <textField><reportElement style="value" x="139" y="79" width="135" height="12"/><textFieldExpression><![CDATA[$F{department}]]></textFieldExpression></textField>
+                <staticText><reportElement style="label" x="278" y="71" width="135" height="8"/><text><![CDATA[BANK · ACCOUNT]]></text></staticText>
+                <textField><reportElement style="value" x="278" y="79" width="135" height="12"/><textFieldExpression><![CDATA["-".equals($F{bankName}) ? "Cash" : $F{bankName} + " · " + $F{bankAccount}]]></textFieldExpression></textField>
+                <staticText><reportElement style="label" x="417" y="71" width="138" height="8"/><text><![CDATA[ADVANCE BALANCE]]></text></staticText>
+                <textField><reportElement style="value" x="417" y="79" width="138" height="12"/><textFieldExpression><![CDATA[$F{advanceBalanceText}]]></textFieldExpression></textField>
+
+                <!-- ===== Attendance strip ===== -->
+                <frame>
+                    <reportElement x="0" y="95" width="555" height="15" backcolor="#FAF7F2" mode="Opaque"/>
+                    <box><pen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                    <textField><reportElement style="cell" x="8"   y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">WORKING DAYS</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{workingDaysText} + "</style>"]]></textFieldExpression></textField>
+                    <textField><reportElement style="cell" x="99"  y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">PAID DAYS</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{daysWorkedText} + "</style>"]]></textFieldExpression></textField>
+                    <textField><reportElement style="cell" x="190" y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">PRESENT</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{presentDaysText} + "</style>"]]></textFieldExpression></textField>
+                    <textField><reportElement style="cell" x="281" y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">ABSENT</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{absentDaysText} + "</style>"]]></textFieldExpression></textField>
+                    <textField><reportElement style="cell" x="372" y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">PAID LEAVE</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{paidLeaveDaysText} + "</style>"]]></textFieldExpression></textField>
+                    <textField><reportElement style="cell" x="463" y="0" width="90" height="15"/><textFieldExpression><![CDATA["<style forecolor=\"#8A8079\" size=\"6\">OVERTIME HRS</style>  <style isBold=\"true\" pdfFontName=\"Helvetica-Bold\">" + $F{overtimeHoursText} + "</style>"]]></textFieldExpression></textField>
+                </frame>
+
+                <!-- ===== Table header ===== -->
+                <frame>
+                    <reportElement x="0" y="113" width="270" height="13"/>
+                    <box><bottomPen lineWidth="0.75" lineColor="#9A2D2A"/></box>
+                    <staticText>
+                        <reportElement x="4" y="0" width="150" height="13" forecolor="#9A2D2A"/>
+                        <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                        <text><![CDATA[EARNINGS]]></text>
+                    </staticText>
+                    <staticText>
+                        <reportElement x="166" y="0" width="100" height="13" forecolor="#8A8079"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="6" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                        <text><![CDATA[AMOUNT (Rs)]]></text>
+                    </staticText>
+                </frame>
+                <frame>
+                    <reportElement x="285" y="113" width="270" height="13"/>
+                    <box><bottomPen lineWidth="0.75" lineColor="#9A2D2A"/></box>
+                    <staticText>
+                        <reportElement x="4" y="0" width="150" height="13" forecolor="#9A2D2A"/>
+                        <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                        <text><![CDATA[DEDUCTIONS]]></text>
+                    </staticText>
+                    <staticText>
+                        <reportElement x="166" y="0" width="100" height="13" forecolor="#8A8079"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="6" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                        <text><![CDATA[AMOUNT (Rs)]]></text>
+                    </staticText>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="56" splitType="Prevent">
+                <!-- Totals -->
+                <frame>
+                    <reportElement x="0" y="2" width="270" height="15" backcolor="#F3ECE1" mode="Opaque"/>
+                    <textField><reportElement style="line" x="4" y="0" width="150" height="15"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA["Gross Earnings"]]></textFieldExpression></textField>
+                    <textField><reportElement style="line" x="156" y="0" width="110" height="15"/><textElement textAlignment="Right"><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{grossSalaryText}]]></textFieldExpression></textField>
+                </frame>
+                <frame>
+                    <reportElement x="285" y="2" width="270" height="15" backcolor="#F3ECE1" mode="Opaque"/>
+                    <textField><reportElement style="line" x="4" y="0" width="150" height="15"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA["Total Deductions"]]></textFieldExpression></textField>
+                    <textField><reportElement style="line" x="156" y="0" width="110" height="15"/><textElement textAlignment="Right"><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{totalDeductionText}]]></textFieldExpression></textField>
+                </frame>
+
+                <!-- Net payable -->
+                <rectangle radius="3">
+                    <reportElement x="0" y="21" width="555" height="24" backcolor="#9A2D2A" mode="Opaque"/>
+                    <graphicElement><pen lineWidth="0"/></graphicElement>
+                </rectangle>
+                <staticText>
+                    <reportElement x="10" y="21" width="80" height="24" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <text><![CDATA[NET PAYABLE]]></text>
+                </staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="92" y="21" width="300" height="24" forecolor="#F5E6E5"/>
+                    <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="6.5" isItalic="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{netSalaryWords}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="395" y="21" width="150" height="24" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="14" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA["Rs " + $F{netSalaryText}]]></textFieldExpression>
+                </textField>
+
+                <!-- Cut line -->
+                <line>
+                    <reportElement x="0" y="52" width="555" height="1" forecolor="#B8AFA6"/>
+                    <graphicElement><pen lineWidth="0.5" lineStyle="Dashed"/></graphicElement>
+                </line>
+            </band>
+        </groupFooter>
+    </group>
+
+    <detail>
+        <band height="11" splitType="Prevent">
+            <textField isBlankWhenNull="true"><reportElement style="line" x="4"   y="0" width="160" height="11"/><textFieldExpression><![CDATA[$F{earningName}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="166" y="0" width="100" height="11"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{earningAmountText}]]></textFieldExpression></textField>
+            <line>
+                <reportElement x="0" y="10" width="270" height="1" forecolor="#EFE8DD">
+                    <printWhenExpression><![CDATA[$F{earningName} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="289" y="0" width="160" height="11"/><textFieldExpression><![CDATA[$F{deductionName}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="451" y="0" width="100" height="11"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{deductionAmountText}]]></textFieldExpression></textField>
+            <line>
+                <reportElement x="285" y="10" width="270" height="1" forecolor="#EFE8DD">
+                    <printWhenExpression><![CDATA[$F{deductionName} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+        </band>
+    </detail>
+</jasperReport>

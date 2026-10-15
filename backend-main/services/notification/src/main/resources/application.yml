@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: notification
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fshrms}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: notification
+  flyway:
+    enabled: true
+    default-schema: notification
+    schemas: notification
+    out-of-order: true
+    # commons-outbox's V0001 collides with notification's V0001 schema
+    # migration; outbox DDL is inlined as V0008 instead.
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: notification
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8084
+
+logging:
+  level:
+    com.forward.hrms.notification: DEBUG
+
+hrms:
+  openapi:
+    title: Spirit of Islam School HRMS — Notification API
+    description: |
+      In-app notifications. Owns the bell feed, per-user preferences, and
+      announcement broadcast. Consumes events from auth/employee/attendance/
+      payroll and turns them into notification rows; publishes to a Redis
+      pub/sub channel that the BFF SSE forwards to the browser.
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  outbox:
+    # AnnounceService and TemplateService emit audit rows via AuditEmitter
+    # (commons-kafka). Outbox publisher pushes those to <svc>.audit.
+    enabled: true
+  notification:
+    # Idempotency dedupe TTL — kafka redelivery window is short, but allow
+    # a generous TTL so repeated processing of the same eventId is a no-op.
+    dedupe-ttl: 24h
+    # Retention sweep — runs daily at 03:00 UTC, deletes rows older than
+    # this window. PAYROLL category has its own (longer) override below;
+    # see docs/policy.md #10.
+    retention: 180d
+    # PAYROLL-category retention override — matches audit retention
+    # (docs/policy.md #9 / #10).
+    payroll-retention: 1460d
+    # Cap on broadcast recipient list size (admin announce).
+    broadcast-max-recipients: 5000
+    # Web Push (OS notifications, app open or closed). Off until both keys
+    # are set. Generate once per environment: `npx web-push generate-vapid-keys`.
+    # The private key belongs in notification-secret; the public key is
+    # served to browsers. Changing the pair invalidates every subscription.
+    push:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:it@forwardsports.com}
+      ttl: 24h

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Permanent advance ledger (accounts report C5) for one employee: letterhead,
+  employee header block, then the chronological ledger (date, description,
+  advance paid, amount recovered, running balance) with the column header
+  repeating on every page, and totals + closing balance once at the end.
+  Rows are the report's own rows (same as the screen / Excel), money
+  pre-formatted. Filled by AccountsDocumentService.
+-->
+<jasperReport whenNoDataType="AllSectionsNoDetail" xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="advance-ledger" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-000000000043">
+
+    <style name="row.zebra" mode="Opaque" backcolor="#FFFFFF">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue() % 2 == 0)]]></conditionExpression>
+            <style backcolor="#F8F4ED"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="companyName"     class="java.lang.String"/>
+    <parameter name="companyAddress"  class="java.lang.String"/>
+    <parameter name="cardNo"          class="java.lang.String"/>
+    <parameter name="employmentType"  class="java.lang.String"/>
+    <parameter name="employeeName"    class="java.lang.String"/>
+    <parameter name="fatherName"      class="java.lang.String"/>
+    <parameter name="cnic"            class="java.lang.String"/>
+    <parameter name="dateOfJoining"   class="java.lang.String"/>
+    <parameter name="department"      class="java.lang.String"/>
+    <parameter name="section"         class="java.lang.String"/>
+    <parameter name="grade"           class="java.lang.String"/>
+    <parameter name="designation"     class="java.lang.String"/>
+    <parameter name="totalPaidText"      class="java.lang.String"/>
+    <parameter name="totalRecoveredText" class="java.lang.String"/>
+    <parameter name="closingText"        class="java.lang.String"/>
+    <parameter name="generatedAt"     class="java.lang.String"/>
+    <parameter name="generatedBy"     class="java.lang.String"/>
+
+    <field name="dateText"      class="java.lang.String"/>
+    <field name="description"   class="java.lang.String"/>
+    <field name="paidText"      class="java.lang.String"/>
+    <field name="recoveredText" class="java.lang.String"/>
+    <field name="balanceText"   class="java.lang.String"/>
+
+    <title>
+        <band height="160">
+            <textField>
+                <reportElement x="0" y="0" width="555" height="18" forecolor="#1A1714"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="19" width="555" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="36" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="0" y="44" width="555" height="16" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                <text><![CDATA[PERMANENT ADVANCE LEDGER]]></text>
+            </staticText>
+
+            <staticText><reportElement x="0" y="70" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Card No]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="85" y="70" width="190" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{cardNo}]]></textFieldExpression></textField>
+            <staticText><reportElement x="285" y="70" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Employment Type]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="370" y="70" width="185" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{employmentType}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="86" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Employee Name]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="85" y="86" width="190" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{employeeName}]]></textFieldExpression></textField>
+            <staticText><reportElement x="285" y="86" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Father Name]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="370" y="86" width="185" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{fatherName}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="102" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[CNIC]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="85" y="102" width="190" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{cnic}]]></textFieldExpression></textField>
+            <staticText><reportElement x="285" y="102" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Date of Joining]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="370" y="102" width="185" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{dateOfJoining}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="118" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Department]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="85" y="118" width="190" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{department}]]></textFieldExpression></textField>
+            <staticText><reportElement x="285" y="118" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Section]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="370" y="118" width="185" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{section}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="134" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Designation]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="85" y="134" width="190" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{designation}]]></textFieldExpression></textField>
+            <staticText><reportElement x="285" y="134" width="85" height="14"/><textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[Grade]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="370" y="134" width="185" height="14"/><textElement><font fontName="SansSerif" size="8"/></textElement><textFieldExpression><![CDATA[$P{grade}]]></textFieldExpression></textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="22">
+            <staticText>
+                <reportElement x="0" y="0" width="70" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Date]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="70" y="0" width="245" height="20" forecolor="#1A1714"/>
+                <box leftPadding="4" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Description]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="315" y="0" width="80" height="20" forecolor="#1A1714"/>
+                <box rightPadding="6" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Advance Paid]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="395" y="0" width="80" height="20" forecolor="#1A1714"/>
+                <box rightPadding="6" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Amount Recovered]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="475" y="0" width="80" height="20" forecolor="#1A1714"/>
+                <box rightPadding="6" bottomPadding="2"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Balance]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="70" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{dateText}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="70" y="0" width="245" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box leftPadding="4"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{description}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="315" y="0" width="80" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box rightPadding="6"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{paidText}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="395" y="0" width="80" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box rightPadding="6"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{recoveredText}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="475" y="0" width="80" height="16" forecolor="#1A1714" style="row.zebra"/>
+                <box rightPadding="6"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{balanceText}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="20">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="4" width="400" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Printed " + $P{generatedAt}
+                    + ($P{generatedBy} == null || $P{generatedBy}.isEmpty() ? "" : " by " + $P{generatedBy})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="400" y="4" width="155" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="30">
+            <line>
+                <reportElement x="0" y="0" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="0" y="6" width="315" height="16" forecolor="#1A1714"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[TOTAL / CLOSING BALANCE]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="315" y="6" width="80" height="16" forecolor="#1A1714"/>
+                <box rightPadding="6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalPaidText}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="395" y="6" width="80" height="16" forecolor="#1A1714"/>
+                <box rightPadding="6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalRecoveredText}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="475" y="6" width="80" height="16" forecolor="#9A2D2A"/>
+                <box rightPadding="6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{closingText}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

@@ -1,0 +1,67 @@
+package com.forward.hrms.payroll.entity;
+
+import com.forward.hrms.commons.core.jpa.AuditedEntity;
+import com.forward.hrms.payroll.enums.PayrollRunStatus;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "payroll_runs")
+@Getter
+@Setter
+public class PayrollRun extends AuditedEntity {
+
+    @Column(name = "fiscal_year_code", nullable = false, length = 7)
+    private String fiscalYearCode;
+
+    @Column(name = "period_year", nullable = false)
+    private int periodYear;
+
+    @Column(name = "period_month", nullable = false)
+    private int periodMonth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private PayrollRunStatus status = PayrollRunStatus.DRAFT;
+
+    @Column(name = "attendance_locked", nullable = false)
+    private boolean attendanceLocked;
+
+    @Column(name = "computed_at")
+    private LocalDateTime computedAt;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    @Column(name = "posted_at")
+    private LocalDateTime postedAt;
+
+    @Column(name = "approved_by")
+    private Long approvedBy;
+
+    @Column(name = "notes")
+    private String notes;
+
+    @Column(name = "skipped_count", nullable = false)
+    private int skippedCount;
+
+    /** Progress counter the compute / post saga ticks every ~25 rows so the
+     *  FE can render "X processed / total_count" while the runner thread
+     *  works. Reset to 0 at each kickoff and at {@code /reset}. */
+    @Column(name = "progress_count", nullable = false)
+    private int progressCount;
+
+    /** Total candidates at saga kickoff — settings count for compute,
+     *  unrendered payslip count for post. Lets the FE show a denominator
+     *  without a separate query. */
+    @Column(name = "total_count", nullable = false)
+    private int totalCount;
+}

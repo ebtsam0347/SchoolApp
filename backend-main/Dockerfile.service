@@ -1,0 +1,38 @@
+# Phase 5: one Dockerfile for every service. Build with:
+#
+#   docker build -f Dockerfile.service \
+#     --build-arg SERVICE_NAME=auth --build-arg SERVICE_PORT=8081 \
+#     -t auth:dev .
+#
+# Build context is the repo root so the COPY path can reach
+# services/<svc>/target/. Build the fat jar on the host first
+# (./services/mvnw -pl <svc> -am package -DskipTests); the image
+# only runs it. This matches the existing local workflow and keeps
+# Maven out of the image — no rebuild of commons jars per `docker build`.
+
+FROM eclipse-temurin:21-jre-alpine
+
+ARG SERVICE_NAME
+ARG SERVICE_PORT=8080
+
+WORKDIR /app
+
+# Non-root, fixed UID/GID so k8s securityContext can match.
+RUN addgroup -S -g 10001 spring \
+ && adduser  -S -u 10001 -G spring spring
+USER 10001:10001
+
+# Container-aware JVM (read MaxRAM from cgroup limit, hard-fail on OOM).
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+
+# CLAUDE.md: server, JVM, and DB all run Asia/Karachi. Without this
+# the container clock is UTC, LocalDateTime.now() runs ~5h behind
+# device-reported punch times, and PunchService.rejectFuture drops
+# every live punch as "in the future".
+ENV TZ=Asia/Karachi
+
+COPY --chown=10001:10001 services/${SERVICE_NAME}/target/${SERVICE_NAME}-*.jar /app/app.jar
+
+EXPOSE ${SERVICE_PORT} 9090
+
+ENTRYPOINT ["java","-jar","/app/app.jar"]

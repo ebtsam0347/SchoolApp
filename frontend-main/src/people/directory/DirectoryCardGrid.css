@@ -1,0 +1,17 @@
+.directory-card {
+  position: relative;
+}
+
+.directory-card:hover,
+.directory-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.18);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .directory-card:hover,
+  .directory-card:focus-visible {
+    transform: none;
+  }
+}

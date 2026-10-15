@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attendance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attendance
+  template:
+    spec:
+      containers:
+        - name: attendance
+          resources:
+            requests:
+              cpu: null
+              memory: null
+            limits:
+              cpu: "1"
+              memory: 1Gi

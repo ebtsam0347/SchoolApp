@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Urdu compact payslip sheet: payslip-sheet.jrxml mirrored right-to-left, three
+  slips per A4 with a dashed cut line. Same data rows (PayslipPdfService.
+  renderSheet); labels are Noto Nastaliq Urdu, every value stays SansSerif in
+  its own field so no text box mixes scripts (see payslip-ur.jrxml). Nastaliq
+  needs taller lines - a Nastaliq text box shorter than ~2.5x its font size
+  prints nothing at all (no clipping, no error) - so this sheet carries
+  SHEET_ROWS_UR line rows of 17pt instead of the English 8 x 11pt, and the
+  slip is 265pt tall (three still fit the 822pt body).
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="payslip-sheet-ur" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="10" bottomMargin="10"
+              uuid="9c5c3d36-1234-4abc-8000-000000000045">
+
+    <!-- A prefix property: Jasper unions every ...blocks.<suffix> value with its own defaults. -->
+    <property name="net.sf.jasperreports.export.pdf.glyph.renderer.blocks.arabic" value="arabic"/>
+
+    <style name="ur.label" forecolor="#8A8079" fontName="Noto Nastaliq Urdu" fontSize="6.5" hTextAlign="Right" vTextAlign="Middle"/>
+    <style name="value" forecolor="#1A1714" fontName="SansSerif" fontSize="8" hTextAlign="Right" vTextAlign="Middle"/>
+    <style name="line" forecolor="#1A1714" fontName="SansSerif" fontSize="8" vTextAlign="Middle"/>
+    <style name="ur.line" forecolor="#1A1714" fontName="Noto Nastaliq Urdu" fontSize="6.5" hTextAlign="Right" vTextAlign="Middle"/>
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+
+    <field name="slipNo"             class="java.lang.Integer"/>
+    <field name="periodText"         class="java.lang.String"/>
+    <field name="fiscalYear"         class="java.lang.String"/>
+    <field name="heldBannerUr"       class="java.lang.String"/>
+    <field name="employeeCode"       class="java.lang.String"/>
+    <field name="employeeName"       class="java.lang.String"/>
+    <field name="fatherName"         class="java.lang.String"/>
+    <field name="designation"        class="java.lang.String"/>
+    <field name="department"         class="java.lang.String"/>
+    <field name="bankName"           class="java.lang.String"/>
+    <field name="bankAccount"        class="java.lang.String"/>
+    <field name="advanceBalanceText" class="java.lang.String"/>
+    <field name="workingDaysText"    class="java.lang.String"/>
+    <field name="daysWorkedText"     class="java.lang.String"/>
+    <field name="presentDaysText"    class="java.lang.String"/>
+    <field name="absentDaysText"     class="java.lang.String"/>
+    <field name="paidLeaveDaysText"  class="java.lang.String"/>
+    <field name="overtimeHoursText"  class="java.lang.String"/>
+    <field name="grossSalaryText"    class="java.lang.String"/>
+    <field name="totalDeductionText" class="java.lang.String"/>
+    <field name="netSalaryText"      class="java.lang.String"/>
+    <field name="netSalaryWords"     class="java.lang.String"/>
+    <field name="earningNameUr"       class="java.lang.String"/>
+    <field name="earningNameEn"       class="java.lang.String"/>
+    <field name="earningAmountText"   class="java.lang.String"/>
+    <field name="deductionNameUr"     class="java.lang.String"/>
+    <field name="deductionNameEn"     class="java.lang.String"/>
+    <field name="deductionAmountText" class="java.lang.String"/>
+
+    <group name="slip" keepTogether="true" minHeightToStartNewPage="265">
+        <groupExpression><![CDATA[$F{slipNo}]]></groupExpression>
+        <groupHeader>
+            <band height="124" splitType="Prevent">
+                <!-- ===== Letterhead (mirrored: company right, title left) ===== -->
+                <rectangle>
+                    <reportElement x="0" y="0" width="555" height="2" backcolor="#9A2D2A" mode="Opaque"/>
+                    <graphicElement><pen lineWidth="0"/></graphicElement>
+                </rectangle>
+                <textField>
+                    <reportElement x="375" y="7" width="180" height="16" forecolor="#1A1714"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="12" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="375" y="23" width="180" height="11" forecolor="#6B625A"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                    <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="190" y="9" width="175" height="22" forecolor="#991B1B" backcolor="#FDECEC" mode="Opaque">
+                        <printWhenExpression><![CDATA[$F{heldBannerUr} != null && !$F{heldBannerUr}.isEmpty()]]></printWhenExpression>
+                    </reportElement>
+                    <box><pen lineWidth="0.75" lineColor="#991B1B"/></box>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$F{heldBannerUr}]]></textFieldExpression>
+                </textField>
+                <staticText>
+                    <reportElement x="0" y="1" width="180" height="24" forecolor="#9A2D2A"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="9"/></textElement>
+                    <text><![CDATA[تنخواہ کی پرچی]]></text>
+                </staticText>
+                <textField>
+                    <reportElement x="0" y="25" width="180" height="13" forecolor="#1A1714"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle" markup="styled"><font fontName="SansSerif" size="9.5" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$F{periodText} + ($F{fiscalYear} == null ? "" : "<style forecolor=\"#6B625A\" size=\"6.5\" isBold=\"false\" pdfFontName=\"Helvetica\">   FY " + $F{fiscalYear} + "</style>")]]></textFieldExpression>
+                </textField>
+                <line>
+                    <reportElement x="0" y="41" width="555" height="1" forecolor="#9A2D2A"/>
+                    <graphicElement><pen lineWidth="0.75"/></graphicElement>
+                </line>
+
+                <!-- ===== Employee (label right of its value) ===== -->
+                <staticText><reportElement style="ur.label" x="499" y="44" width="56" height="18"/><text><![CDATA[کارڈ نمبر]]></text></staticText>
+                <textField><reportElement style="value" x="417" y="44" width="80" height="18"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{employeeCode}]]></textFieldExpression></textField>
+                <staticText><reportElement style="ur.label" x="357" y="44" width="56" height="18"/><text><![CDATA[نام]]></text></staticText>
+                <textField><reportElement style="value" x="139" y="44" width="216" height="18"/><textElement><font size="8.5" isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
+                <staticText><reportElement style="ur.label" x="79" y="44" width="56" height="18"/><text><![CDATA[ولدیت]]></text></staticText>
+                <textField><reportElement style="value" x="0" y="44" width="77" height="18"/><textFieldExpression><![CDATA[$F{fatherName}]]></textFieldExpression></textField>
+
+                <staticText><reportElement style="ur.label" x="499" y="62" width="56" height="18"/><text><![CDATA[عہدہ]]></text></staticText>
+                <textField><reportElement style="value" x="417" y="62" width="80" height="18"/><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+                <staticText><reportElement style="ur.label" x="357" y="62" width="56" height="18"/><text><![CDATA[شعبہ]]></text></staticText>
+                <textField><reportElement style="value" x="278" y="62" width="77" height="18"/><textFieldExpression><![CDATA[$F{department}]]></textFieldExpression></textField>
+                <staticText><reportElement style="ur.label" x="218" y="62" width="56" height="18"/><text><![CDATA[بینک]]></text></staticText>
+                <textField><reportElement style="value" x="139" y="62" width="77" height="18"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA["-".equals($F{bankName}) ? "Cash" : $F{bankName} + " · " + $F{bankAccount}]]></textFieldExpression></textField>
+                <staticText><reportElement style="ur.label" x="79" y="62" width="56" height="18"/><text><![CDATA[ایڈوانس بقایا]]></text></staticText>
+                <textField><reportElement style="value" x="0" y="62" width="77" height="18"/><textFieldExpression><![CDATA[$F{advanceBalanceText}]]></textFieldExpression></textField>
+
+                <!-- ===== Attendance strip (right to left) ===== -->
+                <frame>
+                    <reportElement x="0" y="83" width="555" height="19" backcolor="#FAF7F2" mode="Opaque"/>
+                    <box><pen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                    <staticText><reportElement style="ur.label" x="498" y="0" width="52" height="19"/><text><![CDATA[کام کے دن]]></text></staticText>
+                    <textField><reportElement style="value" x="463" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{workingDaysText}]]></textFieldExpression></textField>
+                    <staticText><reportElement style="ur.label" x="407" y="0" width="52" height="19"/><text><![CDATA[ادا شدہ دن]]></text></staticText>
+                    <textField><reportElement style="value" x="372" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{daysWorkedText}]]></textFieldExpression></textField>
+                    <staticText><reportElement style="ur.label" x="316" y="0" width="52" height="19"/><text><![CDATA[حاضر]]></text></staticText>
+                    <textField><reportElement style="value" x="281" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{presentDaysText}]]></textFieldExpression></textField>
+                    <staticText><reportElement style="ur.label" x="225" y="0" width="52" height="19"/><text><![CDATA[غیر حاضر]]></text></staticText>
+                    <textField><reportElement style="value" x="190" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{absentDaysText}]]></textFieldExpression></textField>
+                    <staticText><reportElement style="ur.label" x="134" y="0" width="52" height="19"/><text><![CDATA[چھٹی]]></text></staticText>
+                    <textField><reportElement style="value" x="99" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{paidLeaveDaysText}]]></textFieldExpression></textField>
+                    <staticText><reportElement style="ur.label" x="43" y="0" width="52" height="19"/><text><![CDATA[اوور ٹائم]]></text></staticText>
+                    <textField><reportElement style="value" x="8" y="0" width="33" height="19"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{overtimeHoursText}]]></textFieldExpression></textField>
+                </frame>
+
+                <!-- ===== Table header: earnings right, deductions left ===== -->
+                <frame>
+                    <reportElement x="285" y="104" width="270" height="20"/>
+                    <box><bottomPen lineWidth="0.75" lineColor="#9A2D2A"/></box>
+                    <staticText>
+                        <reportElement x="110" y="0" width="156" height="20" forecolor="#9A2D2A"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="8"/></textElement>
+                        <text><![CDATA[آمدنی]]></text>
+                    </staticText>
+                    <staticText>
+                        <reportElement x="4" y="0" width="100" height="20" forecolor="#8A8079"/>
+                        <textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="6"/></textElement>
+                        <text><![CDATA[رقم (روپے)]]></text>
+                    </staticText>
+                </frame>
+                <frame>
+                    <reportElement x="0" y="104" width="270" height="20"/>
+                    <box><bottomPen lineWidth="0.75" lineColor="#9A2D2A"/></box>
+                    <staticText>
+                        <reportElement x="110" y="0" width="156" height="20" forecolor="#9A2D2A"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="8"/></textElement>
+                        <text><![CDATA[کٹوتیاں]]></text>
+                    </staticText>
+                    <staticText>
+                        <reportElement x="4" y="0" width="100" height="20" forecolor="#8A8079"/>
+                        <textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="6"/></textElement>
+                        <text><![CDATA[رقم (روپے)]]></text>
+                    </staticText>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="56" splitType="Prevent">
+                <!-- Totals -->
+                <frame>
+                    <reportElement x="285" y="2" width="270" height="17" backcolor="#F3ECE1" mode="Opaque"/>
+                    <staticText><reportElement style="ur.line" x="110" y="0" width="156" height="17"/><text><![CDATA[کل آمدنی]]></text></staticText>
+                    <textField><reportElement style="line" x="4" y="0" width="104" height="17"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{grossSalaryText}]]></textFieldExpression></textField>
+                </frame>
+                <frame>
+                    <reportElement x="0" y="2" width="270" height="17" backcolor="#F3ECE1" mode="Opaque"/>
+                    <staticText><reportElement style="ur.line" x="110" y="0" width="156" height="17"/><text><![CDATA[کل کٹوتیاں]]></text></staticText>
+                    <textField><reportElement style="line" x="4" y="0" width="104" height="17"/><textElement><font isBold="true" pdfFontName="Helvetica-Bold"/></textElement><textFieldExpression><![CDATA[$F{totalDeductionText}]]></textFieldExpression></textField>
+                </frame>
+
+                <!-- Net payable: Urdu label right, amount left -->
+                <rectangle radius="3">
+                    <reportElement x="0" y="22" width="555" height="25" backcolor="#9A2D2A" mode="Opaque"/>
+                    <graphicElement><pen lineWidth="0"/></graphicElement>
+                </rectangle>
+                <staticText>
+                    <reportElement x="425" y="22" width="120" height="25" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="Noto Nastaliq Urdu" size="9"/></textElement>
+                    <text><![CDATA[خالص قابل ادائیگی]]></text>
+                </staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="165" y="22" width="255" height="25" forecolor="#F5E6E5"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="6.5" isItalic="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{netSalaryWords}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="10" y="22" width="150" height="25" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="14" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA["Rs " + $F{netSalaryText}]]></textFieldExpression>
+                </textField>
+
+                <!-- Cut line -->
+                <line>
+                    <reportElement x="0" y="52" width="555" height="1" forecolor="#B8AFA6"/>
+                    <graphicElement><pen lineWidth="0.5" lineStyle="Dashed"/></graphicElement>
+                </line>
+            </band>
+        </groupFooter>
+    </group>
+
+    <detail>
+        <band height="17" splitType="Prevent">
+            <!-- Earnings (right half) -->
+            <textField isBlankWhenNull="true"><reportElement style="ur.line" x="395" y="0" width="156" height="17"/><textFieldExpression><![CDATA[$F{earningNameUr}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="395" y="0" width="156" height="17"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{earningNameEn}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="289" y="0" width="100" height="17"/><textFieldExpression><![CDATA[$F{earningAmountText}]]></textFieldExpression></textField>
+            <line>
+                <reportElement x="285" y="16" width="270" height="1" forecolor="#EFE8DD">
+                    <printWhenExpression><![CDATA[$F{earningAmountText} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+            <!-- Deductions (left half) -->
+            <textField isBlankWhenNull="true"><reportElement style="ur.line" x="110" y="0" width="156" height="17"/><textFieldExpression><![CDATA[$F{deductionNameUr}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="110" y="0" width="156" height="17"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{deductionNameEn}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement style="line" x="4" y="0" width="100" height="17"/><textFieldExpression><![CDATA[$F{deductionAmountText}]]></textFieldExpression></textField>
+            <line>
+                <reportElement x="0" y="16" width="270" height="1" forecolor="#EFE8DD">
+                    <printWhenExpression><![CDATA[$F{deductionAmountText} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </line>
+        </band>
+    </detail>
+</jasperReport>

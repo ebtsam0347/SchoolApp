@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.crt
+!sealed-secrets-*.pub.pem

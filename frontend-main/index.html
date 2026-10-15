@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!-- Installable app (Android "Install", iOS "Add to Home Screen" — iOS only allows push for home-screen apps). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1d47b8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Spirit of Islam" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>The Spirit of Islam School</title>
+    <meta name="description" content="A modern Islamic early-years and kindergarten school where children explore, create, ask questions and grow in character. Thinking Is Our Curriculum." />
+    <meta property="og:site_name" content="The Spirit of Islam School" />
+    <meta property="og:title" content="The Spirit of Islam School — Thinking Is Our Curriculum" />
+    <meta property="og:description" content="Rooted in Faith. Growing Through Discovery. A modern Islamic early-years school." />
+    <meta property="og:image" content="/icons/school-logo.png" />
+    <!-- Public website type: headings + Arabic. Inter is loaded in globals.css. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+    />
+
+    <script>
+      // No-flash theme application. Runs synchronously before paint.
+      (function () {
+        try {
+          var saved = localStorage.getItem('fshrms.theme') || 'spirit';
+          document.documentElement.setAttribute('data-theme', saved);
+        } catch (_) {
+          document.documentElement.setAttribute('data-theme', 'spirit');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

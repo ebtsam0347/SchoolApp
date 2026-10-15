@@ -1,0 +1,1 @@
+ALTER TABLE off_cycle_payment_type DROP COLUMN calculate_with_salary;

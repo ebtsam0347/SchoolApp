@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: chat
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fshrms}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: chat
+  flyway:
+    enabled: true
+    default-schema: chat
+    schemas: chat
+    # commons-outbox V0500 ships in commons-kafka; out-of-order lets us add
+    # service-side V000x migrations after V0500 has already been applied.
+    locations: classpath:db/migration,classpath:db/commons-outbox
+    out-of-order: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: chat
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8088
+
+logging:
+  level:
+    com.forward.hrms.chat: DEBUG
+
+hrms:
+  openapi:
+    title: Spirit of Islam School HRMS — Chat API
+    description: |
+      Internal official chat. DMs, ad-hoc groups, an org-wide
+      announcements channel, attachments, mentions, presence, typing,
+      delivery and read indicators. Live delivery via the BFF SSE
+      stream + Redis pub/sub. Durable fanout via Kafka outbox to
+      notification-service for bell entries.
+    contact-name: The Spirit of Islam School IT team
+    contact-email: it@forwardsports.com
+    server-url: ${HRMS_OPENAPI_SERVER_URL:http://localhost:8080}
+    server-description: API gateway (single ingress)
+  outbox:
+    enabled: true
+  chat:
+    group-member-cap: 50
+    edit-window: 15m
+    message-page-default: 50
+    message-page-max: 100
+    attachments:
+      bucket: chat-attachments
+      upload-url-ttl: 10m
+      download-url-ttl: 10m
+      max-bytes: 26214400      # 25 MiB
+      # allowed-content-types defaults to the safe office/image whitelist;
+      # override here if a tenant-specific MIME shows up.
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    region: ${MINIO_REGION:us-east-1}
+    ensure-buckets:
+      - chat-attachments
+    default-url-ttl: 10m

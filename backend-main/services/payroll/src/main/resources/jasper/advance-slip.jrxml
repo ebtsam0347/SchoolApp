@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Temporary advance slip (accounts report B3) — one framed half-page slip
+  per advance line, so a print-all run lands two slips on every A4 sheet.
+  Letterhead follows the bank-transfer letter (company name, thin #9A2D2A
+  rule). Driven by header parameters + a JRMapCollectionDataSource of one
+  map per slip (fields below); money arrives pre-formatted. Filled by
+  AccountsDocumentService.
+-->
+<jasperReport whenNoDataType="AllSectionsNoDetail" xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="advance-slip" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-000000000041">
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+
+    <field name="employeeCode"  class="java.lang.String"/>
+    <field name="employeeName"  class="java.lang.String"/>
+    <field name="grade"         class="java.lang.String"/>
+    <field name="shift"         class="java.lang.String"/>
+    <field name="dateOfJoining" class="java.lang.String"/>
+    <field name="department"    class="java.lang.String"/>
+    <field name="designation"   class="java.lang.String"/>
+    <field name="advanceMonth"  class="java.lang.String"/>
+    <field name="amountText"    class="java.lang.String"/>
+    <field name="amountWords"   class="java.lang.String"/>
+
+    <detail>
+        <band height="390" splitType="Prevent">
+            <rectangle>
+                <reportElement x="0" y="4" width="555" height="376" forecolor="#1A1714"/>
+                <graphicElement><pen lineWidth="0.75"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement x="12" y="14" width="531" height="18" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="12" y="32" width="531" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="12" y="48" width="531" height="1" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="12" y="54" width="531" height="16" forecolor="#1A1714"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                <text><![CDATA[TEMPORARY ADVANCE SLIP]]></text>
+            </staticText>
+
+            <!-- Employee block: label / value pairs, two columns. -->
+            <staticText><reportElement x="20" y="84" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Card No]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="110" y="84" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{employeeCode}]]></textFieldExpression></textField>
+            <staticText><reportElement x="290" y="84" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Grade]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="380" y="84" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{grade}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="20" y="104" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Employee Name]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="110" y="104" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
+            <staticText><reportElement x="290" y="104" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Shift]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="380" y="104" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{shift}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="20" y="124" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Department]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="110" y="124" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{department}]]></textFieldExpression></textField>
+            <staticText><reportElement x="290" y="124" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Date of Joining]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="380" y="124" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{dateOfJoining}]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="20" y="144" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Designation]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="110" y="144" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+            <staticText><reportElement x="290" y="144" width="90" height="16"/><textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement><text><![CDATA[Advance Month]]></text></staticText>
+            <textField isBlankWhenNull="true"><reportElement x="380" y="144" width="160" height="16"/><textElement><font fontName="SansSerif" size="9"/></textElement><textFieldExpression><![CDATA[$F{advanceMonth}]]></textFieldExpression></textField>
+
+            <!-- Amount -->
+            <rectangle>
+                <reportElement x="20" y="176" width="515" height="44" forecolor="#E5DDD0" backcolor="#F8F4ED"/>
+            </rectangle>
+            <staticText>
+                <reportElement x="30" y="182" width="200" height="16" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <text><![CDATA[Advance Amount (Rs)]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="330" y="182" width="195" height="16" forecolor="#1A1714"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{amountText}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="30" y="200" width="495" height="14" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="8" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{amountWords}]]></textFieldExpression>
+            </textField>
+
+            <!-- Signatures -->
+            <line><reportElement x="20" y="300" width="140" height="1" forecolor="#1A1714"/></line>
+            <staticText><reportElement x="20" y="302" width="140" height="14"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement><text><![CDATA[Employee Signature]]></text></staticText>
+            <line><reportElement x="207" y="300" width="140" height="1" forecolor="#1A1714"/></line>
+            <staticText><reportElement x="207" y="302" width="140" height="14"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement><text><![CDATA[Department Head]]></text></staticText>
+            <line><reportElement x="395" y="300" width="140" height="1" forecolor="#1A1714"/></line>
+            <staticText><reportElement x="395" y="302" width="140" height="14"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8"/></textElement><text><![CDATA[Accounts]]></text></staticText>
+
+            <textField isBlankWhenNull="true">
+                <reportElement x="20" y="358" width="515" height="12" forecolor="#8C8175"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Printed " + $P{generatedAt}
+                    + ($P{generatedBy} == null || $P{generatedBy}.isEmpty() ? "" : " by " + $P{generatedBy})]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+</jasperReport>

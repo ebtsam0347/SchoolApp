@@ -1,0 +1,95 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: audit
+  labels:
+    app: audit
+    release: kps
+spec:
+  groups:
+    - name: audit.slo
+      rules:
+        # 5xx rate above 5% for 5m — most likely to surface real bugs.
+        - alert: AuditHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="audit",status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_server_requests_seconds_count{app="audit"}[5m]))
+              > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: audit
+          annotations:
+            summary: "audit 5xx rate > 5% (ns {{ $labels.namespace }})"
+            description: "5xx rate is {{ $value | humanizePercentage }} over the last 5m."
+
+        # No instances scraping at all — pod gone or mgmt port down.
+        - alert: AuditDown
+          expr: up{job="audit"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: audit
+          annotations:
+            summary: "audit is down (ns {{ $labels.namespace }})"
+            description: "No Prometheus targets for audit are reporting up=1 for 2 minutes."
+
+        # p95 above 1s sustained — pre-incident latency signal.
+        - alert: AuditHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, le) (rate(http_server_requests_seconds_bucket{app="audit"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            service: audit
+          annotations:
+            summary: "audit p95 latency > 1s (ns {{ $labels.namespace }})"
+            description: "p95 latency is {{ $value | humanizeDuration }} over the last 5m, sustained 10m."
+
+        # Heap pool used > 90% of committed for 10m — about to OOM, GC thrashing soon.
+        - alert: AuditJvmHeapPressure
+          expr: |
+            sum by (namespace, pod) (jvm_memory_used_bytes{app="audit",area="heap"})
+              /
+            sum by (namespace, pod) (jvm_memory_committed_bytes{app="audit",area="heap"})
+              > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            service: audit
+          annotations:
+            summary: "audit JVM heap > 90% on {{ $labels.pod }}"
+            description: "Heap used / committed is {{ $value | humanizePercentage }} for 10m. Consider raising memory limits or investigating a leak."
+
+        # HikariCP threads waiting on a connection — DB pool starvation.
+        # Fires only on services with a DataSource (auth/audit/employee/
+        # attendance/payroll/notification/chat). Gateway/bff have no metric
+        # so the rule silently no-ops.
+        - alert: AuditHikariConnectionStarvation
+          expr: |
+            max by (namespace, pod) (hikaricp_connections_pending{app="audit"}) > 0
+          for: 5m
+          labels:
+            severity: warning
+            service: audit
+          annotations:
+            summary: "audit DB pool starved on {{ $labels.pod }}"
+            description: "{{ $value }} thread(s) waiting for a HikariCP connection for 5m. Tune pool size or investigate slow queries."
+
+        # Outstanding parked audit envelopes. Steady state is zero; a
+        # non-zero gauge means a producer-side bug rejected envelopes
+        # that ingest couldn't parse / validate. Triage via
+        # GET /admin/audit/dead-letters.
+        - alert: AuditDeadLetters
+          expr: |
+            max by (namespace) (audit_dead_letters_size) > 0
+          for: 10m
+          labels:
+            severity: warning
+            service: audit
+          annotations:
+            summary: "audit has parked envelopes (ns {{ $labels.namespace }})"
+            description: "{{ $value }} envelope(s) in audit_dead_letters for 10m. Fix the producer, then POST /admin/audit/dead-letters/{id}/replay."

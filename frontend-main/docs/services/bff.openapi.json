@@ -1,0 +1,5042 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FSHRMS — BFF API",
+    "description": "Backend-for-Frontend composites for the web app. Each endpoint\nassembles one page worth of data from the underlying services\n(auth, audit, employee). The BFF owns no persistent state.\nCalls go through the gateway at :8080 — try-it-out below exercises\nthe real ingress (CORS, JWT validation, identity injection).\n",
+    "contact": {
+      "name": "Forward Sports HRMS team",
+      "email": "it@forwardsports.com"
+    },
+    "license": {
+      "name": "Proprietary — Forward Sports"
+    },
+    "version": "0.0.1-SNAPSHOT"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API gateway (single ingress)"
+    }
+  ],
+  "security": [
+    {
+      "Authorization": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "BFF — Chat",
+      "description": "Composite endpoints for the chat surface. Cuts cold-load round-trips for the FE."
+    },
+    {
+      "name": "Sagas — operator console",
+      "description": "Cross-service saga rollup for the /admin/sagas page. Requires `employee.read` (gateway-enforced); the per-service reads pass through identity so a caller without payroll.read sees the payroll slice degrade to empty rather than failing the whole call."
+    },
+    {
+      "name": "Search — Command palette",
+      "description": "Single aggregated endpoint behind the topbar command palette (⌘K). Fans out to every registered provider the caller can read, merges results, re-ranks globally, and caps to the requested limit. Per-provider deadline 250 ms; whole-request ceiling 600 ms — partial responses are flagged via `partial: true`."
+    },
+    {
+      "name": "BFF — Users",
+      "description": "Composite identity resolver for chat / mention chips. Joins auth (username + fullName) with employee (avatar) in one call so the FE doesn't have to. Authenticated only — no `auth.users.read` / `employee.read` required."
+    },
+    {
+      "name": "Notifications — Live stream",
+      "description": "Server-Sent Events channel for the bell badge + inbox. The browser opens one connection per tab; the BFF subscribes to the caller's Redis pub/sub channel and forwards each notification message as a 'notification' event. The SPA invalidates the relevant React-Query keys on receipt so the badge and feed rerender immediately."
+    },
+    {
+      "name": "Account (self-service)",
+      "description": "Composite views for the signed-in user's /account screens. Restricted to the caller's own data — admin views live under /bff/admin."
+    },
+    {
+      "name": "Attendance — Composites",
+      "description": "Cross-service composites that join attendance with audit (timelines) and employee-service (manager coverage). Single-service composites moved into attendance-service in Step 5 of docs/caching.md (today, month, records-with-employee, punches-with-employee, operator dashboard, overtime/me/with-records, leaves/apply-context, approvals/inbox)."
+    },
+    {
+      "name": "Reports catalog",
+      "description": "Single endpoint that drives the /reports page on the FE."
+    },
+    {
+      "name": "Admin — User overview",
+      "description": "Composite admin views over a single user. Requires the same permissions as the underlying admin endpoints (auth.users.read, auth.sessions.admin, auth.roles.read, audit.read)."
+    },
+    {
+      "name": "Employee — Composites",
+      "description": "Cross-service composites that join employee with audit (timelines) and the shared identity cache (by-ids). Single-service composites moved into employee-service in Step 4 of docs/caching.md (directory, stats, history-resolved, org-tree, delegation-candidates, onboarding-lookups)."
+    },
+    {
+      "name": "Dashboard composites",
+      "description": "Per-persona one-shot composites for the /dashboard route. Replaces 6+ fan-outs the browser would otherwise issue per landing."
+    },
+    {
+      "name": "Analytics composites",
+      "description": "Cross-service analytics roll-ups for the management dashboard."
+    }
+  ],
+  "paths": {
+    "/bff/users/search": {
+      "get": {
+        "tags": [
+          "BFF — Users"
+        ],
+        "summary": "Search active users for chat pickers",
+        "description": "Substring match on username + fullName. ACTIVE only — terminated/disabled accounts are filtered out. Returns the same shape as `/by-ids`. Cap: 50 rows per call.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Substring; min 1 char.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Max rows (default 20, capped at 50).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersByIdsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/users/by-ids": {
+      "get": {
+        "tags": [
+          "BFF — Users"
+        ],
+        "summary": "Resolve userIds → display identity",
+        "description": "Order matches input, deduped. Unknown ids are dropped silently. Avatar is null for admin-only users with no employee row. Cap: 200 ids per call.",
+        "operationId": "byIds",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Comma-separated user ids; max 200 per call.",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersByIdsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Too many ids in a single request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersByIdsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/timeline/{requestType}/{id}": {
+      "get": {
+        "tags": [
+          "Attendance — Composites"
+        ],
+        "summary": "Approval-request timeline",
+        "description": "Audit feed for a single leave / overtime / regularization request, for the drawer Activity tab. The BFF probes the upstream request first (404 if it doesn't exist or the caller can't see it) and then reads the audit timeline. Cursor pagination via the audit-service cursor.",
+        "operationId": "requestTimeline",
+        "parameters": [
+          {
+            "name": "requestType",
+            "in": "path",
+            "description": "One of: leave, overtime, regularization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 50, max 200).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from a previous response's `nextCursor`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline page (newest first).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found / not visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "requestType is not one of leave, overtime, regularization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/search": {
+      "get": {
+        "tags": [
+          "Search — Command palette"
+        ],
+        "summary": "Aggregated palette search",
+        "description": "Returns hits across employee, payslip-mine, leave-mine, lookup-*, org-node, and inbox-item providers (each landed independently). Server-side query length minimum is 2; below that the endpoint returns `{results: [], partial: false, providers: []}`. Results are caller-scoped — callers without a permission's subject simply don't see those provider rows; self-only providers (`*-mine`) always return only the caller's own data.",
+        "operationId": "search_1",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query. Server-side minimum length is 2; the FE skips below 2.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "description": "CSV of provider types to consult. Omit to consult every provider the caller can read.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "employee,payslip-mine"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Per-provider hit cap. Default 5, hard ceiling 10.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merged hits + per-provider diagnostics. Cache-Control: private, max-age=10.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/sagas": {
+      "get": {
+        "tags": [
+          "Sagas — operator console"
+        ],
+        "summary": "List sagas across employee + payroll",
+        "description": "Fans out to employee-service and payroll-service in parallel, merges rows, and sorts by updatedAt desc. Use `service=employee|payroll` to restrict to one side; default `all` queries both. Per-service slice degrades to empty if that service is down — degraded flags surface that in the response.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "description": "Which service(s) to query.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "employee",
+                "payroll",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status (RUNNING / COMPLETED / FAILED). Omit for all.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Max rows fetched from each upstream slice (cap 200).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merged saga rows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SagasOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/reports/catalog": {
+      "get": {
+        "tags": [
+          "Reports catalog"
+        ],
+        "summary": "Reports catalog — filtered by caller permissions",
+        "description": "Returns every report the caller is allowed to run, in the order the FE should render them. Each entry carries the gateway path, the permission required (already enforced), the output format, sync/async mode, and the parameter manifest the FE renders into a form.",
+        "operationId": "catalog",
+        "responses": {
+          "200": {
+            "description": "List of available reports for this caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReportCatalogEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/notifications/stream": {
+      "get": {
+        "tags": [
+          "Notifications — Live stream"
+        ],
+        "summary": "Open the live-notification SSE channel",
+        "description": "Authenticated; returns a long-lived `text/event-stream` response. The first event is `ready` (connection established), then one `notification` event per published message, plus periodic comment-line keepalives. Browsers reconnect automatically on EOF; the server-side timeout (10 min default) is the safety net for stuck connections.",
+        "operationId": "stream",
+        "responses": {
+          "200": {
+            "description": "SSE stream opened.",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "401": {
+            "description": "Missing identity headers (gateway didn't authenticate).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SseEmitter"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/employees/{id}/timeline": {
+      "get": {
+        "tags": [
+          "Employee — Composites"
+        ],
+        "summary": "Merged employee timeline",
+        "description": "Merges the audit /timeline rows for `employee/{id}` with the user timeline for the linked `user/{userId}` (when the employee has ESS). Newest first; cursor pagination via the audit-service cursor on the entity feed. Requires `employee.read`.",
+        "operationId": "timeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size (default 50, max 200).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from a previous response's `nextCursor`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/employees/by-ids": {
+      "get": {
+        "tags": [
+          "Employee — Composites"
+        ],
+        "summary": "Resolve employee summaries by id list",
+        "description": "Generic name + photo + department resolver for any list of bare employee ids. Used by approvals inbox, OT batch rows, and any surface that comes back keyed by employee id without names attached. De-duplicates the input. Caps at 200 ids per call — split larger lists client-side. Requires `employee.read`.",
+        "operationId": "byIds_1",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Comma-separated employee ids; capped at 200 per call.",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved summaries; missing ids dropped silently.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeesByIdsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "More than 200 ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeesByIdsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/employee/{id}": {
+      "get": {
+        "tags": [
+          "Employee — Composites"
+        ],
+        "summary": "Aggregated /people/{id} payload",
+        "description": "Returns employee + resolved labels + active contract + active suspension + most-recent exit row + UPHELD warning counts + first-8 direct reports + last 20 user-visible timeline events + last 10 assignment-history rows. Replaces ~10 round-trips today. For the full paginated history use GET /employees/{id}/history/resolved on employee-service. Requires `employee.read`.",
+        "operationId": "employee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Employee id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composite payload assembled from employee + audit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDetail"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A required downstream was unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/dashboard/payroll": {
+      "get": {
+        "tags": [
+          "Dashboard composites"
+        ],
+        "summary": "Payroll dashboard composite",
+        "description": "Current run + 6m run trend + payslip queues. Requires `payroll.read` minimum.",
+        "operationId": "payroll",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/dashboard/manager": {
+      "get": {
+        "tags": [
+          "Dashboard composites"
+        ],
+        "summary": "Manager dashboard composite",
+        "description": "Manager landing for the caller's direct reports: team today + 14d attendance, approval queue (top 5), leave calendar (next 30 days). Returns 403 if the caller has no direct reports — the FE then falls back to the Employee dashboard.",
+        "operationId": "manager",
+        "responses": {
+          "200": {
+            "description": "Composite payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerDashboard"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller has no direct reports.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/dashboard/hr": {
+      "get": {
+        "tags": [
+          "Dashboard composites"
+        ],
+        "summary": "HR dashboard composite",
+        "description": "Org pulse + queues (onboarding stuck, contracts/probation expiring, disciplinary open) + recent audit anomalies. Most counters require `employee.*.read`; missing scope surfaces zeros rather than failing the whole call.",
+        "operationId": "hr",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/dashboard/employee": {
+      "get": {
+        "tags": [
+          "Dashboard composites"
+        ],
+        "summary": "Employee dashboard composite",
+        "description": "Self-service landing payload: next payday, today's attendance, action queues, leave balance, attendance heatmap, recent payslips + 12m net trend, and the next three holidays. Replaces ~6 fan-outs.",
+        "operationId": "employee_1",
+        "responses": {
+          "200": {
+            "description": "Composite payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/dashboard/admin": {
+      "get": {
+        "tags": [
+          "Dashboard composites"
+        ],
+        "summary": "Admin dashboard composite",
+        "description": "System health + recent role changes + locked accounts. Requires admin-tier scope; sections degrade quietly when the caller lacks audit.admin.",
+        "operationId": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/chat/inbox": {
+      "get": {
+        "tags": [
+          "BFF — Chat"
+        ],
+        "summary": "First-paint composite for the chat inbox",
+        "description": "Returns the caller's conversations, an identity resolver map for every member (userId → username + fullName + avatar), and a presence snapshot — all in one call. Authenticated only.",
+        "operationId": "inbox",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInboxResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/attendance/team/{employeeId}/month": {
+      "get": {
+        "tags": [
+          "Attendance — Composites"
+        ],
+        "summary": "Per-employee month view (manager)",
+        "description": "Same shape as `/attendance/me/month/composite` so the FE drawer reuses the existing component. Caller must be the target's current manager OR hold an active approval delegation covering them on the requested month — 403 otherwise.",
+        "operationId": "teamMonth",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "description": "YYYY-MM, defaults to current month (Asia/Karachi).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-day list + month summary for the target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceMonth"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller does not manage this employee and holds no covering delegation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceMonth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/attendance/team/today": {
+      "get": {
+        "tags": [
+          "Attendance — Composites"
+        ],
+        "summary": "Team roll-call (manager)",
+        "description": "One row per direct report plus any employee whose manager has delegated approval authority to the caller for the supplied date. Each row carries the report's compact summary, today's status, punch in/out, and lateness. Capped at 500 rows — beyond that `truncated=true` and the FE drops to a filtered org page. Returns 403 when the caller covers nobody (no direct reports and no active delegation) — same contract as the manager dashboard, so the FE gates the \"My Team\" nav on it. The active-leave chip data is reserved for a future upstream addition; v1 sets `activeLeave: null` on every row.",
+        "operationId": "teamToday",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Date to evaluate. Defaults to today (Asia/Karachi).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roll-call rows + asOf date.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamAttendanceToday"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller has no direct reports and holds no covering delegation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamAttendanceToday"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/analytics/executive-overview": {
+      "get": {
+        "tags": [
+          "Analytics composites"
+        ],
+        "summary": "Executive overview — headline numbers",
+        "description": "Single payload combining the latest values from all four service-side analytics endpoints: headcount, attrition rolling-12m, on-time%, absenteeism%, OT hours, payroll cost. Each field falls back to null if its downstream is unreachable so the dashboard card stays renderable.",
+        "operationId": "executiveOverview",
+        "responses": {
+          "200": {
+            "description": "Composite overview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutiveOverviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/analytics/executive-dashboard/pdf": {
+      "get": {
+        "tags": [
+          "Analytics composites"
+        ],
+        "summary": "Executive dashboard — printable PDF",
+        "description": "Single-page PDF combining the headline KPIs and 12-month trends (headcount, attrition, on-time/absenteeism, payroll cost) plus a current salary-distribution table. Same fan-out as /executive-overview; if a downstream is unreachable, that section renders empty rather than 502'ing.",
+        "operationId": "executiveDashboardPdf",
+        "responses": {
+          "200": {
+            "description": "PDF bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/admin/users/{id}/overview": {
+      "get": {
+        "tags": [
+          "Admin — User overview"
+        ],
+        "summary": "Aggregated user-detail payload",
+        "description": "Returns user + role catalog + active sessions + last 50 login-history entries + last 25 audit events authored by the user, in a single round-trip. Replaces the five queries the /admin/users/{id} page fans out today. Each underlying endpoint enforces its own @RequirePermission, so any missing permission surfaces as a 4xx from the failing slice. Requires `auth.users.read`.",
+        "operationId": "overview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1042
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composite payload assembled from auth + audit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity headers (gateway didn't authenticate).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOverview"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks one of the required downstream permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOverview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOverview"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A required downstream (auth or audit) was unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/account/summary": {
+      "get": {
+        "tags": [
+          "Account (self-service)"
+        ],
+        "summary": "Aggregated /account payload",
+        "description": "Returns identity + active sessions (partitioned into current/others) + top user-visible timeline entries in a single round-trip. Lets the /account layout paint its user-stripe and overview tab without a fan-out from the browser.",
+        "operationId": "summary",
+        "responses": {
+          "200": {
+            "description": "Composite payload assembled from auth + audit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity headers (gateway didn't authenticate).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A required downstream (auth or audit) was unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/account/profile": {
+      "get": {
+        "tags": [
+          "Employee — Composites"
+        ],
+        "summary": "Aggregated /account/profile payload",
+        "description": "ESS counterpart to /bff/employee/{id} — single round-trip for the signed-in employee's profile tab.",
+        "operationId": "accountProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bff/account/persona-hints": {
+      "get": {
+        "tags": [
+          "Account (self-service)"
+        ],
+        "summary": "Persona hints for the signed-in caller",
+        "description": "Lightweight flags the FE persona resolver needs on top of /auth/me — today just the manager signal (does the caller have direct reports). Soft-fails to all-false rather than 4xx-ing when the caller has no ESS-linked employee record so sign-in stays unblocked.",
+        "operationId": "personaHints",
+        "responses": {
+          "200": {
+            "description": "Persona hints (worst case: all-false).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonaHints"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonaHints"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UserIdentitySummary": {
+        "type": "object",
+        "description": "Composed user-identity row the FE uses for chat / mention chips. Joins auth.user.username + auth.user.fullName with employee.profilePictureUrl (via employee.user_id). Avatar is null for admin-only users that have no employee row.",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "User id.",
+            "example": 42
+          },
+          "username": {
+            "type": "string",
+            "description": "Login handle. Stable. Used as the @mention token.",
+            "example": "ahmed.khan"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Ahmed Khan"
+          },
+          "profilePictureUrl": {
+            "type": "string",
+            "description": "Pre-signed avatar URL; null when no employee row or no picture set.",
+            "example": "https://minio.local/employee-docs/employees/108/avatar.jpg?…"
+          },
+          "status": {
+            "type": "string",
+            "description": "Account status from auth-service. UI may grey out non-ACTIVE rows.",
+            "example": "ACTIVE"
+          }
+        },
+        "required": [
+          "fullName",
+          "status",
+          "userId",
+          "username"
+        ]
+      },
+      "UsersByIdsResponse": {
+        "type": "object",
+        "description": "Wrapper for the /bff/users/by-ids resolver. Order matches input order, deduped.",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserIdentitySummary"
+            }
+          }
+        }
+      },
+      "TimelineEntry": {
+        "type": "object",
+        "description": "User-facing timeline entry. One row per `user_visible = true` audit event.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 5421
+          },
+          "action": {
+            "type": "string",
+            "example": "updated"
+          },
+          "actorUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Actor's user id. `actorLabel` is filled at producer time from the JWT `name` claim; null only for events emitted before that wiring landed (Step 6) or by system actors with no display name.",
+            "example": 1042
+          },
+          "actorUsername": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "FS-2026-0042"
+          },
+          "actorLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Saqib Mushtaq"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Phone number updated."
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:33Z"
+          }
+        }
+      },
+      "TimelinePage": {
+        "type": "object",
+        "description": "Cursor-paginated timeline response.",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor for the next page, null at end.",
+            "example": "MjAyNi0wNC0yOFQwOToxMjozM1o6NTQyMQ"
+          }
+        }
+      },
+      "ProviderDiagnostic": {
+        "type": "object",
+        "description": "Provider-level outcome.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Provider type id.",
+            "example": "employee"
+          },
+          "hits": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of hits returned (post per-provider cap).",
+            "example": 5
+          },
+          "ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Wall time in milliseconds until the provider settled.",
+            "example": 18
+          },
+          "status": {
+            "type": "string",
+            "description": "ok, timeout, or error.",
+            "example": "ok"
+          }
+        },
+        "required": [
+          "hits",
+          "ms",
+          "status",
+          "type"
+        ]
+      },
+      "SearchHit": {
+        "type": "object",
+        "description": "One palette result. Order is by descending score within the response.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable, provider-prefixed id (e.g. \"employee:1234\").",
+            "example": "employee:1234"
+          },
+          "type": {
+            "type": "string",
+            "description": "Provider type. Matches the type filter in ?types=.",
+            "example": "employee"
+          },
+          "title": {
+            "type": "string",
+            "description": "Primary text shown by the palette row.",
+            "example": "Aisha Khan"
+          },
+          "subtitle": {
+            "type": "string",
+            "description": "Optional supporting text (designation, status, period).",
+            "example": "Software Engineer · Engineering"
+          },
+          "url": {
+            "type": "string",
+            "description": "Where the FE should navigate on selection.",
+            "example": "/people/1234"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "Per-provider relevance score in [0, 1]. Aggregator may apply a small exact-prefix boost before global ranking.",
+            "example": 0.92
+          },
+          "badge": {
+            "type": "string",
+            "description": "Short label the FE renders next to the row.",
+            "example": "Person"
+          }
+        },
+        "required": [
+          "id",
+          "score",
+          "title",
+          "type",
+          "url"
+        ]
+      },
+      "SearchResponse": {
+        "type": "object",
+        "description": "Globally ranked palette results plus per-provider diagnostics.",
+        "properties": {
+          "results": {
+            "type": "array",
+            "description": "Merged, re-ranked hits across all consulted providers. Capped at the request limit (default 5 per provider, hard ceiling 10).",
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            }
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "True when at least one provider timed out or errored. The FE shows what came back; degraded providers surface in `providers`.",
+            "example": false
+          },
+          "providers": {
+            "type": "array",
+            "description": "One row per provider the aggregator consulted (after permission filtering). Useful for tuning provider timeouts and zero-result coverage.",
+            "items": {
+              "$ref": "#/components/schemas/ProviderDiagnostic"
+            }
+          }
+        },
+        "required": [
+          "partial",
+          "providers",
+          "results"
+        ]
+      },
+      "SagaRow": {
+        "type": "object",
+        "description": "One saga row, annotated with its origin service.",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "Which service the saga row lives in.",
+            "enum": [
+              "employee",
+              "payroll"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sagaName": {
+            "type": "string"
+          },
+          "correlationKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "currentStep": {
+            "type": "string"
+          },
+          "stepIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextAttemptAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          }
+        }
+      },
+      "SagasOverview": {
+        "type": "object",
+        "description": "Merged saga rows across employee + payroll. Sorted by updatedAt desc.",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "description": "Merged rows, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/SagaRow"
+            }
+          },
+          "employeeCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Count of rows from employee-service in this response."
+          },
+          "payrollCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Count of rows from payroll-service in this response."
+          },
+          "employeeDegraded": {
+            "type": "boolean",
+            "description": "True if employee-service read failed (rows partial)."
+          },
+          "payrollDegraded": {
+            "type": "boolean",
+            "description": "True if payroll-service read failed (rows partial)."
+          }
+        }
+      },
+      "ReportCatalogEntry": {
+        "type": "object",
+        "description": "One report the FE can offer. Combines the gateway path, required permission, output format, sync/async mode and a parameter manifest the FE renders into the request form. /bff/reports/catalog returns the list pre-filtered by the caller's permissions.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable id, '<service>.<slug>'. Use as React key + telemetry.",
+            "example": "payroll.pay-register"
+          },
+          "service": {
+            "type": "string",
+            "description": "Owning service.",
+            "enum": [
+              "employee",
+              "attendance",
+              "leaves",
+              "payroll"
+            ],
+            "example": "payroll"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable title for the card.",
+            "example": "Pay register (per run)"
+          },
+          "description": {
+            "type": "string",
+            "description": "One-sentence summary shown under the title.",
+            "example": "Async — every payslip × every component, footed."
+          },
+          "format": {
+            "type": "string",
+            "description": "Output file format.",
+            "enum": [
+              "csv",
+              "pdf",
+              "xlsx",
+              "zip",
+              "json"
+            ],
+            "example": "xlsx"
+          },
+          "mode": {
+            "type": "string",
+            "description": "sync = browser receives the file inline; async = enqueue then poll /reports/jobs/{id}.",
+            "enum": [
+              "sync",
+              "async"
+            ],
+            "example": "async"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method to invoke.",
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "example": "POST"
+          },
+          "path": {
+            "type": "string",
+            "description": "Gateway-relative path. Prepend the gateway base URL.",
+            "example": "/reports/payroll/pay-register/jobs"
+          },
+          "permission": {
+            "type": "string",
+            "description": "Permission the caller must hold. Already enforced — this field is informational so the FE can show why a row is hidden.",
+            "example": "payroll.reports.run"
+          },
+          "userVisibleAudit": {
+            "type": "boolean",
+            "description": "Statutory reports (EOBI / PESSI / tax) emit a user-visible audit row so HR can demonstrate filings to auditors."
+          },
+          "parameters": {
+            "type": "array",
+            "description": "Parameter manifest. Render one form field per entry.",
+            "items": {
+              "$ref": "#/components/schemas/ReportCatalogParameter"
+            }
+          }
+        }
+      },
+      "ReportCatalogParameter": {
+        "type": "object",
+        "description": "A single parameter the FE needs to collect before submitting.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name in the URL / body.",
+            "example": "from"
+          },
+          "location": {
+            "type": "string",
+            "description": "Where to put the value when calling.",
+            "enum": [
+              "query",
+              "path",
+              "body"
+            ],
+            "example": "query"
+          },
+          "type": {
+            "type": "string",
+            "description": "Value type.",
+            "enum": [
+              "string",
+              "int",
+              "date",
+              "enum"
+            ],
+            "example": "date"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "True when the gateway / service will 400 / 422 if missing."
+          },
+          "values": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Allowed values when type=enum, else null.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "help": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Inline help text the FE can show beside the field.",
+            "example": "Inclusive lower bound of the date range."
+          }
+        }
+      },
+      "SseEmitter": {
+        "type": "object",
+        "properties": {
+          "timeout": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "EmployeeSummary": {
+        "type": "object",
+        "description": "Compact employee row for resolving names against an id list. Used by the approvals inbox, payroll composites, attendance composites, and any surface that comes back keyed by employee id without names attached.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Employee id."
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "employeeCode": {
+            "type": "string",
+            "description": "Human-readable employee code (e.g. FS-2026-0042). Also the RFID/punch-card number used by attendance devices."
+          },
+          "departmentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Department id."
+          },
+          "departmentName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Department name, looked up from the catalog."
+          },
+          "sectionId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Section id."
+          },
+          "sectionName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Section name, looked up from the catalog."
+          },
+          "designationId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Designation id."
+          },
+          "designationName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Designation title, looked up from the catalog."
+          },
+          "profilePictureUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL for the employee's profile photo."
+          }
+        }
+      },
+      "EmployeesByIdsResponse": {
+        "type": "object",
+        "description": "Resolver result. Order matches the request id order; ids the caller cannot see (or that don't exist) are silently dropped — clients should compare lengths if exact-match matters.",
+        "properties": {
+          "employees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeSummary"
+            }
+          }
+        }
+      },
+      "ActiveProbationDto": {
+        "type": "object",
+        "description": "Per-row active-probation summary for HR's probation queue.",
+        "properties": {
+          "contractId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Underlying employment_contracts row id.",
+            "example": 734
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Probation end date.",
+            "example": "2026-05-15"
+          },
+          "daysRemaining": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days remaining (negative when overdue).",
+            "example": 12
+          },
+          "isExtended": {
+            "type": "boolean",
+            "description": "True iff the probation has already been extended once."
+          }
+        }
+      },
+      "CityDto": {
+        "type": "object",
+        "description": "City in Pakistan, scoped to a province.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 5
+          },
+          "code": {
+            "type": "string",
+            "description": "Catalog code.",
+            "example": "SKT"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Sialkot"
+          },
+          "provinceId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Province id.",
+            "example": 1
+          },
+          "provinceCode": {
+            "type": "string",
+            "description": "Province code (denormalized for filters).",
+            "example": "PB"
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Soft-deactivation flag."
+          },
+          "displayOrder": {
+            "type": "integer",
+            "format": "int32",
+            "description": "HR-controlled sort order; lower sorts first.",
+            "example": 10
+          }
+        }
+      },
+      "DepartmentDto": {
+        "type": "object",
+        "description": "Top-level org unit. Departments are flat — no nesting.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 3
+          },
+          "code": {
+            "type": "string",
+            "description": "Catalog code.",
+            "example": "PROD"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Production"
+          },
+          "headId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Department head's employee id, if assigned."
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Soft-deactivation flag."
+          },
+          "isProduction": {
+            "type": "boolean",
+            "description": "Marks the department as a production unit (factory floor)."
+          }
+        }
+      },
+      "DesignationDto": {
+        "type": "object",
+        "description": "Job title catalog. Department-agnostic.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 7
+          },
+          "code": {
+            "type": "string",
+            "description": "Catalog code.",
+            "example": "SR_ENG"
+          },
+          "title": {
+            "type": "string",
+            "description": "Display title.",
+            "example": "Senior Engineer"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "DIRECT (production-line) vs INDIRECT (office / admin). Null when the distinction does not apply.",
+            "enum": [
+              "DIRECT",
+              "INDIRECT"
+            ]
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Soft-deactivation flag."
+          }
+        }
+      },
+      "EmployeeDetail": {
+        "type": "object",
+        "description": "Composite payload for the /people/{id} detail page: employee + resolved labels + active contract + suspension + exit + warning counts + direct reports preview + recent timeline + recent assignment history.",
+        "properties": {
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeDto"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/EmployeeResolvedLabels",
+            "description": "Resolved id→label rows for the catalogs the page renders."
+          },
+          "activeContract": {
+            "type": "null",
+            "$ref": "#/components/schemas/EmploymentContractDto",
+            "description": "Active contract row (most-recent ACTIVE)."
+          },
+          "activeSuspension": {
+            "type": "null",
+            "$ref": "#/components/schemas/SuspensionDto",
+            "description": "Currently active suspension, if any."
+          },
+          "exit": {
+            "type": "null",
+            "$ref": "#/components/schemas/ExitDto",
+            "description": "Most recent exit row (PENDING / COMPLETED / WITHDRAWN)."
+          },
+          "upheldWarningsThisFy": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "UPHELD warning counts for the current FY by level (FIRST/SECOND/FINAL → count)."
+          },
+          "openWarningsThisFy": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open (ISSUED) warning rows total."
+          },
+          "directReportsPreview": {
+            "$ref": "#/components/schemas/EmployeeDetail.DirectReportsPreview",
+            "description": "First 8 direct reports + total count."
+          },
+          "recentTimeline": {
+            "type": "array",
+            "description": "Last 20 user-visible timeline events for this employee.",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            }
+          },
+          "recentHistory": {
+            "type": "array",
+            "description": "Last 10 assignment-history rows (newest first), with catalog + manager labels resolved. Use GET /employees/{id}/history/resolved for the paginated full list.",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeHistoryRow"
+            }
+          },
+          "tenureDays": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Days from joining_date through today (Asia/Karachi)."
+          }
+        }
+      },
+      "EmployeeDetail.DirectReportsPreview": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDetail.ReportSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EmployeeDetail.ReportSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "employeeCode": {
+            "type": "string"
+          },
+          "profilePictureUrl": {
+            "type": "string"
+          },
+          "directReportsCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EmployeeDto": {
+        "type": "object",
+        "description": "Employee record — admin lists, get-by-id, post-mutation responses.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 42
+          },
+          "userId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Linked auth user id (null when ESS not granted)."
+          },
+          "employeeCode": {
+            "type": "string",
+            "description": "Employee code.",
+            "example": "FS-2026-0042"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Ahmed Raza"
+          },
+          "cnic": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "13-digit CNIC."
+          },
+          "cnicIssueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "cnicExpiryDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "ntn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "insuranceNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sscNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eobiNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dateOfBirth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "gender": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maritalStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fatherName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "motherName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spouseName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "religion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bloodGroup": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "B+"
+          },
+          "personalEmail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workEmail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "permanentAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cityId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "country": {
+            "type": "string",
+            "example": "PK"
+          },
+          "joiningDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "confirmationDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ON_NOTICE",
+              "ON_LEAVE",
+              "SUSPENDED",
+              "TERMINATED"
+            ]
+          },
+          "employmentType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "PERMANENT",
+              "CONTRACT",
+              "INTERN"
+            ]
+          },
+          "departmentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "sectionId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "designationId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "gradeId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "managerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "managerUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Linked auth user id of the manager. Null when the manager has no ESS user, or when the source path didn't resolve it (mutation responses leave it null)."
+          },
+          "profilePictureKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profilePictureUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived signed GET URL for the profile picture. Null when no picture is set or the storage call failed."
+          },
+          "hasEss": {
+            "type": "boolean",
+            "description": "True iff ESS is provisioned."
+          },
+          "essProvisioningStatus": {
+            "type": "string",
+            "description": "ESS provisioning state. On mutation responses reflects only the linked-user check (COMPLETED / NOT_REQUESTED). On read paths the assembler looks up the onboarding saga row to surface RUNNING / FAILED.",
+            "enum": [
+              "NOT_REQUESTED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "directReportsCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Number of non-terminated employees who report to this employee. Populated on read endpoints; null on post-mutation responses."
+          },
+          "activeProbation": {
+            "type": "null",
+            "$ref": "#/components/schemas/ActiveProbationDto",
+            "description": "Active-probation summary. Populated only on probation queries (probationDueWithin / probationOverdue) and detail reads."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EmployeeHistoryDto": {
+        "type": "object",
+        "description": "One row of the employee's org-assignment history.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Null on the current row."
+          },
+          "departmentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "sectionId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "designationId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "gradeId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "managerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "changeReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "ONBOARD",
+              "TRANSFER",
+              "PROMOTION",
+              "DEMOTION",
+              "DEPARTMENT_CHANGE",
+              "MANAGER_CHANGE",
+              "SECTION_CHANGE",
+              "EXIT"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EmployeeHistoryRow": {
+        "type": "object",
+        "description": "Point-in-time assignment row + resolved catalog labels and manager summary.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "history row id"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "description": "Inclusive start of this assignment."
+          },
+          "effectiveTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Inclusive end. Null when this is the current row."
+          },
+          "changeReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ONBOARD / TRANSFER / PROMOTION / DEMOTION / DEPARTMENT_CHANGE / MANAGER_CHANGE / SECTION_CHANGE / EXIT."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Free-text note captured at the time of change."
+          },
+          "department": {
+            "type": "null",
+            "$ref": "#/components/schemas/DepartmentDto"
+          },
+          "section": {
+            "type": "null",
+            "$ref": "#/components/schemas/SectionDto"
+          },
+          "designation": {
+            "type": "null",
+            "$ref": "#/components/schemas/DesignationDto"
+          },
+          "grade": {
+            "type": "null",
+            "$ref": "#/components/schemas/GradeDto"
+          },
+          "manager": {
+            "type": "null",
+            "$ref": "#/components/schemas/ManagerSummary"
+          },
+          "raw": {
+            "$ref": "#/components/schemas/EmployeeHistoryDto",
+            "description": "Raw upstream row, in case the FE wants the unresolved ids."
+          }
+        }
+      },
+      "EmployeeResolvedLabels": {
+        "type": "object",
+        "description": "Resolved id→label rows for the catalogs the page renders.",
+        "properties": {
+          "department": {
+            "type": "null",
+            "$ref": "#/components/schemas/DepartmentDto"
+          },
+          "section": {
+            "type": "null",
+            "$ref": "#/components/schemas/SectionDto"
+          },
+          "designation": {
+            "type": "null",
+            "$ref": "#/components/schemas/DesignationDto"
+          },
+          "grade": {
+            "type": "null",
+            "$ref": "#/components/schemas/GradeDto"
+          },
+          "city": {
+            "type": "null",
+            "$ref": "#/components/schemas/CityDto"
+          },
+          "manager": {
+            "type": "null",
+            "$ref": "#/components/schemas/ManagerSummary"
+          }
+        }
+      },
+      "EmploymentContractDto": {
+        "type": "object",
+        "description": "One row of the employee's contract history.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "contractType": {
+            "type": "string",
+            "enum": [
+              "PROBATION",
+              "PERMANENT",
+              "FIXED_TERM"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "EXPIRED",
+              "TERMINATED"
+            ]
+          },
+          "probationDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Only present on PROBATION contracts."
+          },
+          "extended": {
+            "type": "boolean"
+          },
+          "documentKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived signed GET URL for the contract document. Null when no document is attached or the storage call failed."
+          }
+        }
+      },
+      "ExitDto": {
+        "type": "object",
+        "description": "Current or historical exit row for an employee.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "exitType": {
+            "type": "string",
+            "enum": [
+              "RESIGNATION",
+              "TERMINATION",
+              "RETIREMENT"
+            ]
+          },
+          "noticeStartDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "lastWorkingDay": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "COMPLETED",
+              "WITHDRAWN"
+            ]
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "withdrawnAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "withdrawnReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "GradeDto": {
+        "type": "object",
+        "description": "Seniority grade catalog. Higher level = more senior.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 4
+          },
+          "code": {
+            "type": "string",
+            "description": "Catalog code.",
+            "example": "G3"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Grade 3"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Ordering hint; higher is more senior.",
+            "example": 3
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional description."
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Soft-deactivation flag."
+          },
+          "displayOrder": {
+            "type": "integer",
+            "format": "int32",
+            "description": "HR-controlled sort order; lower sorts first.",
+            "example": 30
+          },
+          "gradeType": {
+            "type": "string",
+            "description": "Role bucket. Drives payroll's canteen rule (management → weekly, supervisor/labour → per-day) and other grade-type policy switches.",
+            "enum": [
+              "MANAGEMENT",
+              "SUPERVISOR",
+              "LABOUR"
+            ]
+          }
+        }
+      },
+      "ManagerSummary": {
+        "type": "object",
+        "description": "Lean view of an employee's direct manager — enough to render the manager strip.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "employeeCode": {
+            "type": "string"
+          },
+          "profilePictureUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SectionDto": {
+        "type": "object",
+        "description": "Section within a department.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 12
+          },
+          "code": {
+            "type": "string",
+            "description": "Catalog code.",
+            "example": "QC_1"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Quality Control - Footballs"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Parent department id.",
+            "example": 3
+          },
+          "departmentCode": {
+            "type": "string",
+            "description": "Parent department code.",
+            "example": "PROD"
+          },
+          "headId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Section head's employee id, if assigned."
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Soft-deactivation flag."
+          }
+        }
+      },
+      "SuspensionDto": {
+        "type": "object",
+        "description": "One row in an employee's suspension history.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Planned end. Null on open-ended suspensions."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "withPay": {
+            "type": "boolean",
+            "description": "When false, suspended days count as LOP for payroll."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LIFTED"
+            ]
+          },
+          "liftedOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "liftedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DashboardMoney": {
+        "type": "object",
+        "description": "Money envelope used across the dashboard payloads. `amount` is rupees as a BigDecimal at scale 2 — matches the §0.5 doctrine (was historically `long` paisa).",
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "PayrollDashboard": {
+        "type": "object",
+        "description": "Composite for the Payroll persona. Drives the payroll-officer landing.",
+        "properties": {
+          "currentRun": {
+            "type": "null",
+            "$ref": "#/components/schemas/PayrollDashboard.CurrentRun"
+          },
+          "runs6m": {
+            "$ref": "#/components/schemas/PayrollDashboard.Runs6m"
+          },
+          "needsYou": {
+            "$ref": "#/components/schemas/PayrollDashboard.NeedsYou"
+          },
+          "anomalyScatter": {
+            "type": "null",
+            "$ref": "#/components/schemas/PayrollDashboard.AnomalyScatter"
+          },
+          "bonusByDepartment90d": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollDashboard.DepartmentBonus"
+            }
+          },
+          "netYoYTrend12m": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollDashboard.NetPoint"
+            }
+          }
+        }
+      },
+      "PayrollDashboard.AnomalyScatter": {
+        "type": "object",
+        "description": "Prior-vs-current scatter. Empty until D-S3 (payroll-side scatter endpoint) lands.",
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "comparedTo": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollDashboard.ScatterPoint"
+            }
+          }
+        }
+      },
+      "PayrollDashboard.CurrentRun": {
+        "type": "object",
+        "description": "Most recent run that hasn't been POSTED — DRAFT / LOCKED / COMPUTED / APPROVED. Falls back to the latest POSTED run when nothing is in flight. `status` carries the run's actual PayrollRunStatus, so a run caught mid-transition can also surface COMPUTING / POSTING / FAILED / CANCELLED.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fiscalYear": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "DRAFT",
+              "LOCKED",
+              "COMPUTING",
+              "COMPUTED",
+              "APPROVED",
+              "POSTING",
+              "POSTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "cutoffDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "daysToCutoff": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "rollup": {
+            "$ref": "#/components/schemas/PayrollDashboard.Rollup"
+          }
+        }
+      },
+      "PayrollDashboard.DepartmentBonus": {
+        "type": "object",
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          }
+        }
+      },
+      "PayrollDashboard.NeedsYou": {
+        "type": "object",
+        "description": "Action queues for the payroll officer.",
+        "properties": {
+          "anomaliesOnRun": {
+            "$ref": "#/components/schemas/PayrollDashboard.QueueSection"
+          },
+          "offCyclePending": {
+            "$ref": "#/components/schemas/PayrollDashboard.QueueSection"
+          },
+          "salaryChangesPending": {
+            "$ref": "#/components/schemas/PayrollDashboard.QueueSection"
+          },
+          "payslipsHeld": {
+            "$ref": "#/components/schemas/PayrollDashboard.QueueSection"
+          }
+        }
+      },
+      "PayrollDashboard.NetPoint": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PayrollDashboard.QueueItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employee": {
+            "type": "null",
+            "$ref": "#/components/schemas/EmployeeSummary"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occurredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PayrollDashboard.QueueSection": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollDashboard.QueueItem"
+            }
+          }
+        }
+      },
+      "PayrollDashboard.Rollup": {
+        "type": "object",
+        "properties": {
+          "gross": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "deductions": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "net": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "employeeCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PayrollDashboard.RunRollup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "period": {
+            "type": "string"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "deductions": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "net": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          }
+        }
+      },
+      "PayrollDashboard.Runs6m": {
+        "type": "object",
+        "description": "Last 6 runs in the current fiscal year, oldest first for the chart.",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollDashboard.RunRollup"
+            }
+          }
+        }
+      },
+      "PayrollDashboard.ScatterPoint": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "departmentName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priorNet": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currentNet": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "variancePct": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ManagerDashboard": {
+        "type": "object",
+        "description": "Composite for the Manager persona. Scope is the caller's direct reports.",
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/ManagerDashboard.Team"
+          },
+          "attendance14d": {
+            "$ref": "#/components/schemas/ManagerDashboard.Attendance14d"
+          },
+          "approvalQueue": {
+            "$ref": "#/components/schemas/ManagerDashboard.ApprovalQueue"
+          },
+          "leaveCalendar30d": {
+            "$ref": "#/components/schemas/ManagerDashboard.LeaveCalendar30d"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ManagerDashboard.Context"
+          }
+        }
+      },
+      "ManagerDashboard.ApprovalQueue": {
+        "type": "object",
+        "description": "Pending approvals across leave / overtime / regularization, capped at the top 5 rows; \"see all\" links into /approvals/inbox.",
+        "properties": {
+          "totalPending": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagerDashboard.ApprovalRow"
+            }
+          },
+          "velocity": {
+            "$ref": "#/components/schemas/ManagerDashboard.Velocity"
+          }
+        }
+      },
+      "ManagerDashboard.ApprovalRow": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeSummary"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ManagerDashboard.Attendance14d": {
+        "type": "object",
+        "description": "Last 14 days of team attendance, bucketed per day.",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagerDashboard.DayBucket"
+            }
+          }
+        }
+      },
+      "ManagerDashboard.Context": {
+        "type": "object",
+        "description": "Punctuality + exception roll-ups over the last 7 days.",
+        "properties": {
+          "punctualityWeek": {
+            "$ref": "#/components/schemas/ManagerDashboard.Punctuality"
+          },
+          "exceptionsWeek": {
+            "$ref": "#/components/schemas/ManagerDashboard.Exceptions"
+          }
+        }
+      },
+      "ManagerDashboard.DayBucket": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "present": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "late": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "absent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "leave": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ManagerDashboard.Exceptions": {
+        "type": "object",
+        "description": "Count of LATE + ABSENT records across direct reports in the last 7 days.",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ManagerDashboard.LeaveCalendar30d": {
+        "type": "object",
+        "description": "Approved team leaves in the next 30 days. Empty until the team-leave list endpoint lands; for v1 the FE renders \"no upcoming leaves\".",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagerDashboard.LeaveItem"
+            }
+          }
+        }
+      },
+      "ManagerDashboard.LeaveItem": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "leaveType": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "ManagerDashboard.Punctuality": {
+        "type": "object",
+        "description": "Average late minutes across direct reports who attended in the last 7 days, plus a 7-element daily trend (oldest → today).",
+        "properties": {
+          "avgVarianceMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "trend7d": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "ManagerDashboard.Team": {
+        "type": "object",
+        "description": "Team roster: counts plus a flat member list for the avatar stack. Per-person status for today is served by /bff/attendance/team/today.",
+        "properties": {
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "directReports": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeSummary"
+            }
+          }
+        }
+      },
+      "ManagerDashboard.Velocity": {
+        "type": "object",
+        "description": "Average minutes between request submission and the caller's decision over the last 7 days, plus a 7-element daily trend (oldest → today). Empty days surface as 0.",
+        "properties": {
+          "avgDecisionMinutes7d": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "trend7d": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "HrDashboard": {
+        "type": "object",
+        "description": "Composite for the HR persona. Org-wide totals are the headline; queues are filtered by caller scope where relevant.",
+        "properties": {
+          "orgPulse": {
+            "$ref": "#/components/schemas/HrDashboard.OrgPulse"
+          },
+          "attendance30d": {
+            "$ref": "#/components/schemas/HrDashboard.Attendance30d"
+          },
+          "headcount12m": {
+            "$ref": "#/components/schemas/HrDashboard.Headcount12m"
+          },
+          "queues": {
+            "$ref": "#/components/schemas/HrDashboard.Queues"
+          },
+          "departmentLeave30d": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrDashboard.DepartmentLeave"
+            }
+          },
+          "recentAuditAnomalies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            }
+          }
+        }
+      },
+      "HrDashboard.Attendance30d": {
+        "type": "object",
+        "description": "Per-day attendance rate over the last 30 days. Empty until D-S2 lands.",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrDashboard.RateDay"
+            }
+          }
+        }
+      },
+      "HrDashboard.DepartmentLeave": {
+        "type": "object",
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "leaveDays": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "HrDashboard.Headcount12m": {
+        "type": "object",
+        "description": "Joiners / leavers / end-of-month headcount over the trailing 12 months. Empty until employee-service exposes the monthly aggregate (out of v1 scope).",
+        "properties": {
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrDashboard.HeadcountMonth"
+            }
+          }
+        }
+      },
+      "HrDashboard.HeadcountMonth": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "joiners": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "leavers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "endHeadcount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "HrDashboard.LeaveHotspotRow": {
+        "type": "object",
+        "description": "Employee burning through annual leave. Empty until the per-employee leave-balance aggregate ships.",
+        "properties": {
+          "personId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "departmentName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "annualUsedPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "remainingDays": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "HrDashboard.LeaveHotspots": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrDashboard.LeaveHotspotRow"
+            }
+          }
+        }
+      },
+      "HrDashboard.OrgPulse": {
+        "type": "object",
+        "description": "Today's headcount roll-up. Today's status counters fall back to zero until D-S2 (org-wide attendance pulse endpoint) ships.",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date"
+          },
+          "headcount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "presentToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lateToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "onLeaveToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "absentToday": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "HrDashboard.QueueItem": {
+        "type": "object",
+        "description": "Generic queue row — `kind` discriminates so the FE renders the correct drawer / link.",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeSummary"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "due": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "HrDashboard.QueueSection": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrDashboard.QueueItem"
+            }
+          }
+        }
+      },
+      "HrDashboard.Queues": {
+        "type": "object",
+        "properties": {
+          "onboardingStuck": {
+            "$ref": "#/components/schemas/HrDashboard.QueueSection"
+          },
+          "contractsExpiring": {
+            "$ref": "#/components/schemas/HrDashboard.QueueSection"
+          },
+          "disciplinaryOpen": {
+            "$ref": "#/components/schemas/HrDashboard.QueueSection"
+          },
+          "leaveHotspots": {
+            "$ref": "#/components/schemas/HrDashboard.LeaveHotspots"
+          }
+        }
+      },
+      "HrDashboard.RateDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "anomaly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EmployeeDashboard": {
+        "type": "object",
+        "description": "Composite payload for the /dashboard route when the caller is rendered as the Employee persona. Replaces ~6 fan-outs (employee me, payslips, leave balance, attendance month, holidays, notifications).",
+        "properties": {
+          "nextPayday": {
+            "type": "null",
+            "$ref": "#/components/schemas/EmployeeDashboard.NextPayday"
+          },
+          "today": {
+            "$ref": "#/components/schemas/EmployeeDashboard.Today"
+          },
+          "needsYou": {
+            "$ref": "#/components/schemas/EmployeeDashboard.NeedsYou"
+          },
+          "leaveBalance": {
+            "$ref": "#/components/schemas/EmployeeDashboard.LeaveBalance"
+          },
+          "attendanceHeatmap": {
+            "$ref": "#/components/schemas/EmployeeDashboard.AttendanceHeatmap"
+          },
+          "payslips": {
+            "$ref": "#/components/schemas/EmployeeDashboard.Payslips"
+          },
+          "upcomingHolidays": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.UpcomingHoliday"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.AttendanceHeatmap": {
+        "type": "object",
+        "description": "Per-day status for the current month — drives the heatmap viz.",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.HeatmapDay"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.CountedDocs": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.DocRow"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.CountedPunches": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.PunchRow"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.CountedRequests": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.RequestRow"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.DocRow": {
+        "type": "object",
+        "description": "Doc the employee still needs to acknowledge. Empty for v1 — no downstream contract yet.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      },
+      "EmployeeDashboard.HeatmapDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string"
+          },
+          "varianceMin": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EmployeeDashboard.LeaveBalance": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date"
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.LeaveTypeBalance"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.LeaveTypeBalance": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "used": {
+            "type": "number"
+          },
+          "pending": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      },
+      "EmployeeDashboard.NeedsYou": {
+        "type": "object",
+        "description": "Action queues. Each carries a count for the badge plus the top 5 rows the FE renders inline; \"see all\" links into the module page.",
+        "properties": {
+          "pendingRequests": {
+            "$ref": "#/components/schemas/EmployeeDashboard.CountedRequests"
+          },
+          "missingPunches": {
+            "$ref": "#/components/schemas/EmployeeDashboard.CountedPunches"
+          },
+          "documentsToAck": {
+            "$ref": "#/components/schemas/EmployeeDashboard.CountedDocs"
+          }
+        }
+      },
+      "EmployeeDashboard.NetTrendPoint": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "EmployeeDashboard.NextPayday": {
+        "type": "object",
+        "description": "Most recent payslip + the payroll run it belongs to. The FE displays this as the projected next payday — the run lifecycle (DRAFT / LOCKED / POSTED) tells the user whether numbers are final.",
+        "properties": {
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "projectedNet": {
+            "type": "null",
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "runId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "runStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EmployeeDashboard.PayslipRow": {
+        "type": "object",
+        "description": "Compact payslip for the dashboard list. Full detail (lines, PDF) lives on /bff/payslips/me.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "periodYear": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "periodMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "net": {
+            "$ref": "#/components/schemas/DashboardMoney"
+          },
+          "status": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "EmployeeDashboard.Payslips": {
+        "type": "object",
+        "properties": {
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.PayslipRow"
+            }
+          },
+          "netTrend12m": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDashboard.NetTrendPoint"
+            }
+          }
+        }
+      },
+      "EmployeeDashboard.PunchRow": {
+        "type": "object",
+        "description": "Workday with no attendance record (no punches and the nightly close didn't leave a stub). The FE deep-links into the missing-punch flow.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "EmployeeDashboard.RequestRow": {
+        "type": "object",
+        "description": "Pending leave / overtime / regularization request the caller submitted.",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EmployeeDashboard.Shift": {
+        "type": "object",
+        "description": "Assigned shift snapshot — null when the upstream attendance record doesn't carry one yet.",
+        "properties": {
+          "start": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "end": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EmployeeDashboard.Today": {
+        "type": "object",
+        "description": "Today's attendance status — pulled from this month's attendance roll-forward + today's punches.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "One of CHECKED_IN, ON_LEAVE, OFF, PENDING_PUNCH, HOLIDAY, WEEKEND, ABSENT."
+          },
+          "checkInAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "shift": {
+            "type": "null",
+            "$ref": "#/components/schemas/EmployeeDashboard.Shift"
+          },
+          "elapsedMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "EmployeeDashboard.UpcomingHoliday": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dayOfWeek": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminDashboard": {
+        "type": "object",
+        "description": "Composite for the Admin persona. System-health slice; feeds the Admin dashboard hero.",
+        "properties": {
+          "systemHealth": {
+            "$ref": "#/components/schemas/AdminDashboard.SystemHealth"
+          },
+          "auditVolume7d": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDashboard.AuditDay"
+            }
+          },
+          "needsYou": {
+            "$ref": "#/components/schemas/AdminDashboard.NeedsYou"
+          },
+          "authEventsByHour": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDashboard.AuthHourBucket"
+            }
+          },
+          "recentRoleChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventDto"
+            }
+          }
+        }
+      },
+      "AdminDashboard.AuditDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AdminDashboard.AuthHourBucket": {
+        "type": "object",
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "logins": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failures": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AdminDashboard.NeedsYou": {
+        "type": "object",
+        "properties": {
+          "failedSagas": {
+            "$ref": "#/components/schemas/AdminDashboard.QueueSection"
+          },
+          "permissionChanges24h": {
+            "$ref": "#/components/schemas/AdminDashboard.QueueSection"
+          },
+          "lockedAccounts": {
+            "$ref": "#/components/schemas/AdminDashboard.QueueSection"
+          }
+        }
+      },
+      "AdminDashboard.QueueItem": {
+        "type": "object",
+        "description": "Generic admin queue row. `retryHref` is set on rows where re-arm is supported (failed sagas).",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "label": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "retryHref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AdminDashboard.QueueSection": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDashboard.QueueItem"
+            }
+          }
+        }
+      },
+      "AdminDashboard.ReplayQueue": {
+        "type": "object",
+        "description": "Audit consumer-lag summary. Pulled from /admin/audit/health when available; defaults to zero/null when the caller lacks audit.admin.",
+        "properties": {
+          "depth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "oldestSeconds": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AdminDashboard.SagaHealth": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "failureRate24h": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "AdminDashboard.SagaSummary": {
+        "type": "object",
+        "description": "Saga health rollup. Counts default to zero until the audit / saga list endpoint ships (D-S4).",
+        "properties": {
+          "running": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed24h": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDashboard.SagaHealth"
+            }
+          }
+        }
+      },
+      "AdminDashboard.SystemHealth": {
+        "type": "object",
+        "properties": {
+          "overall": {
+            "type": "string"
+          },
+          "sagas": {
+            "$ref": "#/components/schemas/AdminDashboard.SagaSummary"
+          },
+          "auditReplayQueue": {
+            "$ref": "#/components/schemas/AdminDashboard.ReplayQueue"
+          }
+        }
+      },
+      "AuditEventDto": {
+        "type": "object",
+        "description": "An audit event row. JSON fields are returned as-is from the emitting service.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 5421
+          },
+          "eventId": {
+            "type": "string",
+            "example": "01HZK7G6Y0PSV2TPC9N9XSH3WC"
+          },
+          "sourceService": {
+            "type": "string",
+            "example": "employee"
+          },
+          "entityType": {
+            "type": "string",
+            "example": "employee"
+          },
+          "entityId": {
+            "type": "string",
+            "example": "1057"
+          },
+          "action": {
+            "type": "string",
+            "example": "updated"
+          },
+          "actorUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "example": 42
+          },
+          "actorUsername": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "FS-2026-0042"
+          },
+          "actorLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Saqib Mushtaq"
+          },
+          "before": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Snapshot before the change."
+          },
+          "after": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Snapshot after the change."
+          },
+          "changes": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Pre-diffed { field: { from, to } } if the emitter supplied it."
+          },
+          "metadata": {
+            "type": "null",
+            "$ref": "#/components/schemas/JsonNode",
+            "description": "Producer metadata (ip, user-agent, source)."
+          },
+          "correlationId": {
+            "type": "string",
+            "example": "8c2cc4e0-..."
+          },
+          "ipAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "203.0.113.5"
+          },
+          "userVisible": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Phone number updated."
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:33Z"
+          },
+          "ingestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-28T09:12:34Z"
+          }
+        }
+      },
+      "JsonNode": {
+        "type": "object",
+        "properties": {
+          "array": {
+            "type": "boolean"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "null": {
+            "type": "boolean"
+          },
+          "float": {
+            "type": "boolean"
+          },
+          "floatingPointNumber": {
+            "type": "boolean"
+          },
+          "integralNumber": {
+            "type": "boolean"
+          },
+          "missingNode": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "boolean"
+          },
+          "valueNode": {
+            "type": "boolean"
+          },
+          "object": {
+            "type": "boolean"
+          },
+          "pojo": {
+            "type": "boolean"
+          },
+          "short": {
+            "type": "boolean"
+          },
+          "int": {
+            "type": "boolean"
+          },
+          "long": {
+            "type": "boolean"
+          },
+          "double": {
+            "type": "boolean"
+          },
+          "bigDecimal": {
+            "type": "boolean"
+          },
+          "bigInteger": {
+            "type": "boolean"
+          },
+          "textual": {
+            "type": "boolean",
+            "deprecated": true
+          },
+          "boolean": {
+            "type": "boolean"
+          },
+          "binary": {
+            "type": "boolean"
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "ARRAY",
+              "BINARY",
+              "BOOLEAN",
+              "MISSING",
+              "NULL",
+              "NUMBER",
+              "OBJECT",
+              "POJO",
+              "STRING"
+            ]
+          },
+          "string": {
+            "type": "boolean"
+          },
+          "container": {
+            "type": "boolean"
+          },
+          "embeddedValue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ChatInboxResponse": {
+        "type": "object",
+        "description": "Cold-load shape for the chat surface. Bundles the conversation list, identity resolution for every member, and a presence snapshot — the first paint of the chat UI now needs one round-trip instead of ~5+N.",
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "description": "Caller's conversations (DMs, groups, broadcast).",
+            "items": {
+              "$ref": "#/components/schemas/ConversationDto"
+            }
+          },
+          "resolved": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UserIdentitySummary"
+            },
+            "description": "userId → identity, for every member of every conversation. Null avatar for admin-only users with no employee row."
+          },
+          "presence": {
+            "type": "array",
+            "description": "Presence snapshot for the same set of userIds.",
+            "items": {
+              "$ref": "#/components/schemas/PresenceDto"
+            }
+          }
+        }
+      },
+      "ConversationDto": {
+        "type": "object",
+        "description": "Conversation header. Members and last-message preview included.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "DM",
+              "GROUP",
+              "BROADCAST"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByUser": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastMessageId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastMessageAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "memberUserIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastReadByUser": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Per-member read cursors: userId → lastReadMessageId. Empty for BROADCAST (no member rows; ✓✓ is noisy on org-wide channels). Lets the FE draw `seen by` / blue ticks without an extra fetch."
+          }
+        }
+      },
+      "PresenceDto": {
+        "type": "object",
+        "description": "A user's connection status. `online` means we have a live SSE within the last ~30s; otherwise `offline` with a `lastSeenAt` if known.",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "online | offline"
+          },
+          "lastSeenAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AttendanceMonth": {
+        "type": "object",
+        "description": "Calendar month view. Each day's `kind` is the FE's render hint — pick the single overlay that wins for that cell. Precedence (high → low): HOLIDAY > LEAVE > the record's status (PRESENT, ABSENT, HALF_DAY, WEEKEND).",
+        "properties": {
+          "days": {
+            "type": "array",
+            "description": "Per-day rows for the month, in chronological order.",
+            "items": {
+              "$ref": "#/components/schemas/AttendanceMonth.Day"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AttendanceMonth.Summary"
+          }
+        }
+      },
+      "AttendanceMonth.Day": {
+        "type": "object",
+        "properties": {
+          "workDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Render hint — one of PRESENT, ABSENT, LEAVE, HOLIDAY, WEEKEND, HALF_DAY."
+          },
+          "record": {
+            "type": "null",
+            "$ref": "#/components/schemas/AttendanceRecordDto"
+          },
+          "holiday": {
+            "type": "null",
+            "$ref": "#/components/schemas/HolidayDto"
+          },
+          "leave": {
+            "type": "null",
+            "$ref": "#/components/schemas/AttendanceMonth.DayLeave"
+          }
+        }
+      },
+      "AttendanceMonth.DayLeave": {
+        "type": "object",
+        "description": "Compact leave overlay — full request lives elsewhere.",
+        "properties": {
+          "requestId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "leaveTypeCode": {
+            "type": "string"
+          },
+          "halfDay": {
+            "type": "boolean"
+          },
+          "halfDayPart": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AttendanceMonth.Summary": {
+        "type": "object",
+        "properties": {
+          "present": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "absent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "leave": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "holiday": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "halfDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weekend": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalWorkedMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalOtMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalLateMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "AttendanceRecordDto": {
+        "type": "object",
+        "description": "Per-day attendance projection. Shift fields are the snapshot — they do NOT change when the shift catalog or assignment changes.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "workDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "checkIn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "checkOut": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "effectiveShift": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "shiftStartTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shiftEndTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shiftBreakStartTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shiftBreakEndTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shiftBreakMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Derived from break window."
+          },
+          "shiftGraceMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lateMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "earlyMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "workedMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "otNormalMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "otExtraMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "otSpecialMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paid": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "§7.payroll #23 — paid-leave flag. Populated when status == LEAVE from the leave type's paid column at approval time. Null on every other status."
+          }
+        }
+      },
+      "HolidayDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "holidayDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TeamAttendanceToday": {
+        "type": "object",
+        "description": "Roll-call view for a manager's team on a given date. Each row carries the report's employee summary plus the attendance signal we already collect — status, punch times, lateness. Active-leave overlay is stubbed (always null) until an employee-scoped APPROVED-leave endpoint lands upstream; the FE can still flag leave days using `status === 'LEAVE'` from the record.",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the rows describe (defaults to today, Asia/Karachi)."
+          },
+          "rows": {
+            "type": "array",
+            "description": "One row per covered employee. Order = direct reports first, then delegated reports. Capped at 500 — beyond that the response is truncated and `truncated=true`.",
+            "items": {
+              "$ref": "#/components/schemas/TeamAttendanceToday.Row"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the coverage set exceeded the 500-row cap and was truncated."
+          }
+        }
+      },
+      "TeamAttendanceToday.ActiveLeave": {
+        "type": "object",
+        "properties": {
+          "leaveTypeCode": {
+            "type": "string"
+          },
+          "halfDay": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TeamAttendanceToday.Row": {
+        "type": "object",
+        "properties": {
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeSummary"
+          },
+          "status": {
+            "type": "string",
+            "description": "Attendance status — PRESENT, ABSENT, LEAVE, HOLIDAY, WEEKEND, HALF_DAY, or PENDING_PUNCH when no record exists yet for the date."
+          },
+          "checkIn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "checkOut": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lateMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "activeLeave": {
+            "type": "null",
+            "$ref": "#/components/schemas/TeamAttendanceToday.ActiveLeave",
+            "description": "Reserved for an active-leave overlay; always null in v1."
+          }
+        }
+      },
+      "ExecutiveOverviewDto": {
+        "type": "object",
+        "properties": {
+          "headcount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "attritionRolling12mPct": {
+            "type": "number"
+          },
+          "latestMonthOnTimePct": {
+            "type": "number"
+          },
+          "latestMonthAbsenteeismPct": {
+            "type": "number"
+          },
+          "latestMonthOtHours": {
+            "type": "number"
+          },
+          "latestMonthPayrollCost": {
+            "type": "number"
+          }
+        }
+      },
+      "LoginHistoryEntry": {
+        "type": "object",
+        "description": "One login-related audit event for a user.",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the event occurred.",
+            "example": "2026-04-28T08:14:22Z"
+          },
+          "action": {
+            "type": "string",
+            "description": "Audit action.",
+            "enum": [
+              "login.success",
+              "login.failed",
+              "user.locked",
+              "user.unlocked"
+            ],
+            "example": "login.success"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "True if the login attempt succeeded.",
+            "example": true
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "Originating IP, if recorded.",
+            "example": "203.0.113.42"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User-Agent header, if recorded.",
+            "example": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ..."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Failure reason for failed/locked entries (BAD_PASSWORD, USER_DISABLED, USER_LOCKED).",
+            "example": "BAD_PASSWORD"
+          }
+        }
+      },
+      "NameAndVersion": {
+        "type": "object",
+        "description": "Parsed name + optional version.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Chrome"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "118.0.5993.117"
+          }
+        }
+      },
+      "RoleDto": {
+        "type": "object",
+        "description": "Role with its attached permission codes.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal role id.",
+            "example": 3
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable role code used in JWT claims and policy checks. Seeded codes are EMPLOYEE | MANAGER | HR | ADMIN (no ROLE_ prefix).",
+            "example": "HR"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name.",
+            "example": "HR Manager"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description."
+          },
+          "system": {
+            "type": "boolean",
+            "description": "True for Flyway-seeded roles — UI should hide the Delete control on these.",
+            "example": true
+          },
+          "serviceAccount": {
+            "type": "boolean",
+            "description": "True for roles that back a machine identity (POLLER, ATTENDANCE_SVC). Excluded from the default catalog response — pass `includeServiceAccounts=true` on /admin/roles to see them.",
+            "example": false
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Permission codes the role grants (sorted, distinct).",
+            "example": [
+              "auth.users.read",
+              "auth.users.write"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SessionDto": {
+        "type": "object",
+        "description": "Refresh-token-backed session. Active when revokedAt is null and expiresAt is in the future.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Session id.",
+            "example": 412
+          },
+          "deviceLabel": {
+            "type": "string",
+            "description": "Best-effort device label parsed from the User-Agent at login.",
+            "example": "Chrome on macOS"
+          },
+          "deviceFamily": {
+            "type": "string",
+            "description": "Coarse device family for UI icon-picking.",
+            "enum": [
+              "MOBILE",
+              "TABLET",
+              "DESKTOP",
+              "UNKNOWN"
+            ],
+            "example": "DESKTOP"
+          },
+          "browser": {
+            "$ref": "#/components/schemas/NameAndVersion",
+            "description": "Browser name + version, parsed from the User-Agent. Null when unknown."
+          },
+          "os": {
+            "$ref": "#/components/schemas/NameAndVersion",
+            "description": "OS name + version, parsed from the User-Agent. Null when unknown."
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "Originating IP at login.",
+            "example": "203.0.113.42"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "Raw User-Agent at login.",
+            "example": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ..."
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the session was created.",
+            "example": "2026-04-28T08:14:22Z"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last token refresh (≈ activity within the last 15 min).",
+            "example": "2026-04-28T09:42:00Z"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Refresh token expiry.",
+            "example": "2026-05-05T08:14:22Z"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "True if this session backs the current request.",
+            "example": true
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the session was revoked. Null for active sessions.",
+            "example": "2026-04-28T10:42:11Z"
+          },
+          "revokedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Username that revoked the session (self for user-initiated, admin for admin revoke).",
+            "example": "ahmed.raza"
+          }
+        }
+      },
+      "UserDto": {
+        "type": "object",
+        "description": "User account view — admin lists, get-by-id, and post-mutation responses.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal user id.",
+            "example": 1042
+          },
+          "username": {
+            "type": "string",
+            "description": "Login name.",
+            "example": "ahmed.raza"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "Ahmed Raza"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contact email (nullable)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle status — drives whether the user can log in.",
+            "enum": [
+              "ACTIVE",
+              "DISABLED",
+              "LOCKED"
+            ]
+          },
+          "mustChangePw": {
+            "type": "boolean",
+            "description": "True until the user changes their initial / reset password."
+          },
+          "employeeLinked": {
+            "type": "boolean",
+            "description": "True when linked to an employee record (ESS)."
+          },
+          "roles": {
+            "type": "array",
+            "description": "Role codes assigned (sorted, distinct; no ROLE_ prefix).",
+            "example": [
+              "HR"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last successful login (UTC)."
+          },
+          "lockedUntil": {
+            "type": "string",
+            "format": "date-time",
+            "description": "If non-null, account is locked until this UTC instant due to failed login attempts."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Created at (UTC)."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Updated at (UTC)."
+          }
+        }
+      },
+      "UserOverview": {
+        "type": "object",
+        "description": "Composite payload for the admin /admin/users/{id} console: user, role catalog, active sessions, recent login history, recent admin-visible audit events. Replaces the five queries the page fans out today.",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserDto",
+            "description": "Full user record (from /admin/users/{id})."
+          },
+          "roles": {
+            "type": "array",
+            "description": "Full role catalog so the available-roles panel can render without a separate fetch (from /admin/roles).",
+            "items": {
+              "$ref": "#/components/schemas/RoleDto"
+            }
+          },
+          "sessions": {
+            "type": "array",
+            "description": "Active sessions for this user (from /admin/users/{id}/sessions).",
+            "items": {
+              "$ref": "#/components/schemas/SessionDto"
+            }
+          },
+          "loginHistory": {
+            "type": "array",
+            "description": "Last 50 login-related events for this user (from /admin/users/{id}/login-history).",
+            "items": {
+              "$ref": "#/components/schemas/LoginHistoryEntry"
+            }
+          },
+          "recentActions": {
+            "type": "array",
+            "description": "Last 25 audit events authored by this user, across services (from /audit/by-actor/{id}).",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventDto"
+            }
+          }
+        }
+      },
+      "AccountSessionsView": {
+        "type": "object",
+        "description": "Caller's active sessions, partitioned for the user-stripe and security panel.",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total active sessions for the caller.",
+            "example": 3
+          },
+          "current": {
+            "$ref": "#/components/schemas/SessionDto",
+            "description": "The session backing the current request, if it could be identified."
+          },
+          "others": {
+            "type": "array",
+            "description": "Other active sessions (excludes `current`).",
+            "items": {
+              "$ref": "#/components/schemas/SessionDto"
+            }
+          }
+        }
+      },
+      "AccountSummary": {
+        "type": "object",
+        "description": "Composite payload for the /account layout: identity, sessions, recent timeline. Replaces the three queries the user-stripe and overview tab fan out today.",
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/MeResponse",
+            "description": "Caller identity, roles, and effective permissions (from /auth/me)."
+          },
+          "sessions": {
+            "$ref": "#/components/schemas/AccountSessionsView",
+            "description": "Active sessions for the caller (from /auth/sessions)."
+          },
+          "recentEvents": {
+            "type": "array",
+            "description": "Top user-visible events for the caller (from /timeline/user/{id}).",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            }
+          }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "description": "Current user identity, roles, and effective permissions.",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal user id.",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "Username used at login.",
+            "example": "admin"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Display name.",
+            "example": "System Administrator"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contact email (nullable for system users).",
+            "example": "admin@forwardsports.com"
+          },
+          "employeeLinked": {
+            "type": "boolean",
+            "description": "True when the user is linked to an employee record (ESS access)."
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "True if the user must change their password before doing anything else."
+          },
+          "roles": {
+            "type": "array",
+            "description": "Role codes assigned to the user (no ROLE_ prefix; matches the Flyway seed).",
+            "example": [
+              "HR",
+              "ADMIN"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Flattened, distinct permission codes from all roles.",
+            "example": [
+              "auth.users.read",
+              "auth.users.write"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last successful login (UTC). Null on first login."
+          }
+        }
+      },
+      "AccountProfile": {
+        "type": "object",
+        "description": "ESS counterpart to /bff/employee/{id} — single round-trip for the signed-in employee's /account/profile tab.",
+        "properties": {
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeDto"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/EmployeeResolvedLabels"
+          },
+          "activeContract": {
+            "type": "null",
+            "$ref": "#/components/schemas/EmploymentContractDto",
+            "description": "Active contract row."
+          },
+          "team": {
+            "type": "array",
+            "description": "Direct-reports preview — empty when the caller has no team.",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeDetail.ReportSummary"
+            }
+          },
+          "upcomingProbationDeadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Probation end date when one is active, null otherwise."
+          }
+        }
+      },
+      "PersonaHints": {
+        "type": "object",
+        "description": "Pre-computed flags the FE persona resolver needs but cannot derive from /auth/me alone. Today this is just the manager signal — does the caller have any direct reports? Permission-based scopes (HR / payroll / admin) stay on the FE since they are trivially derivable from /auth/me.permissions.",
+        "properties": {
+          "hasDirectReports": {
+            "type": "boolean",
+            "description": "True when the caller has at least one direct report — drives the Manager dashboard option in the persona switcher."
+          },
+          "directReportsCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of direct reports. 0 when the caller is not a manager or has no ESS-linked employee record.",
+            "example": 12
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Authorization": {
+        "type": "http",
+        "description": "Paste the access token returned from POST /auth/login (without the 'Bearer ' prefix).",
+        "name": "Authorization",
+        "in": "header",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

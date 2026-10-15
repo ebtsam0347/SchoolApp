@@ -1,0 +1,905 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FSHRMS — Notification API",
+    "description": "In-app notifications. Owns the bell feed, per-user preferences, and\nannouncement broadcast. Consumes events from auth/employee/attendance/\npayroll and turns them into notification rows; publishes to a Redis\npub/sub channel that the BFF SSE forwards to the browser.\n",
+    "contact": {
+      "name": "Forward Sports HRMS team",
+      "email": "it@forwardsports.com"
+    },
+    "license": {
+      "name": "Proprietary — Forward Sports"
+    },
+    "version": "0.0.1-SNAPSHOT"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API gateway (single ingress)"
+    }
+  ],
+  "security": [
+    {
+      "Authorization": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin — Announcements",
+      "description": "Broadcast a notification to a resolved user-id list. Requires `notification.announce`."
+    },
+    {
+      "name": "Notifications — Bell feed",
+      "description": "Per-user in-app notifications. Authenticated; reads/writes are always scoped to the caller."
+    },
+    {
+      "name": "Notifications — Preferences",
+      "description": "Per-user opt-out toggles per notification type."
+    },
+    {
+      "name": "Admin — Templates",
+      "description": "Per-type rendering templates. Requires `notification.template.write` for mutations, `notification.template.read` for reads."
+    }
+  ],
+  "paths": {
+    "/notifications/{id}/read": {
+      "post": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "Mark a notification read",
+        "operationId": "markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or not yours.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read": {
+      "post": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "Bulk mark-read",
+        "description": "Mark a set of ids read in one call. Ids that don't belong to the caller or that are already read are silently skipped — `marked` reflects only rows that actually transitioned.",
+        "operationId": "markRead_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkMarkReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkReadResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "Mark all my notifications read",
+        "operationId": "markAllRead",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/notifications/templates": {
+      "get": {
+        "tags": [
+          "Admin — Templates"
+        ],
+        "summary": "List templates",
+        "description": "Requires `notification.template.read`.",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin — Templates"
+        ],
+        "summary": "Create a template",
+        "description": "Requires `notification.template.write`.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Type already in use.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/notifications/announce": {
+      "post": {
+        "tags": [
+          "Admin — Announcements"
+        ],
+        "summary": "Send a broadcast",
+        "description": "Caller resolves the recipient list (employee-service department/role pickers etc.) and passes the user ids in. The service fans out N rows + N publishes — recipient resolution is not done here. Requires `notification.announce`.",
+        "operationId": "announce",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnounceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Broadcast queued; rows persisted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnounceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No recipients, or list exceeds the configured cap.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnounceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/preferences": {
+      "get": {
+        "tags": [
+          "Notifications — Preferences"
+        ],
+        "summary": "List my preferences",
+        "description": "Returns only the explicit overrides. Anything not listed defaults to enabled.",
+        "operationId": "list_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PreferenceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Notifications — Preferences"
+        ],
+        "summary": "Patch my preferences",
+        "description": "Sparse — only the keys you pass are touched.",
+        "operationId": "update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PreferenceDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/notifications/templates/{id}": {
+      "patch": {
+        "tags": [
+          "Admin — Templates"
+        ],
+        "summary": "Patch a template",
+        "description": "Requires `notification.template.write`.",
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "404": {
+            "description": "Template not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "List my notifications (newest first)",
+        "description": "Standard `page`, `size`, `sort` query params apply (default sort: `createdAt,desc`). Filter by `category` to restrict to a single bell-UI grouping.",
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "name": "unread",
+            "in": "query",
+            "description": "Set true to return only unread items.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Filter by category. Omit for all.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "APPROVAL",
+                "ANNOUNCEMENT",
+                "SYSTEM",
+                "PAYROLL"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseNotificationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "Bell-badge count",
+        "description": "Cheap unread count (Redis-cached). Falls back to a DB scan on cache miss.",
+        "operationId": "unreadCount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/types": {
+      "get": {
+        "tags": [
+          "Notifications — Bell feed"
+        ],
+        "summary": "Type catalog",
+        "description": "All active notification types — what the FE preferences page renders as toggle rows, and what the admin templates list shows. Backed by the active rows in notification_templates so adding a new type means adding a template, not a code change.",
+        "operationId": "types",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationTypeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NotificationDto": {
+        "type": "object",
+        "description": "A single bell-feed entry for a user.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id.",
+            "example": 10421
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Recipient user id.",
+            "example": 42
+          },
+          "type": {
+            "type": "string",
+            "description": "Canonical type, e.g. LEAVE_APPROVED.",
+            "example": "LEAVE_APPROVED"
+          },
+          "title": {
+            "type": "string",
+            "description": "Rendered title."
+          },
+          "body": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rendered body."
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Deep link path the web app navigates to."
+          },
+          "payload": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque JSON payload."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coarse grouping for the bell UI.",
+            "enum": [
+              "APPROVAL",
+              "ANNOUNCEMENT",
+              "SYSTEM",
+              "PAYROLL"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority hint; defaults to NORMAL.",
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH"
+            ]
+          },
+          "readAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the user marked it read; null if unread."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the row was created."
+          }
+        }
+      },
+      "BulkMarkReadRequest": {
+        "type": "object",
+        "description": "Mark a set of notifications read in one call. Ids that don't belong to the caller or that are already read are silently skipped.",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "description": "Notification ids to mark read.",
+            "example": [
+              10421,
+              10422,
+              10423
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "MarkReadResponse": {
+        "type": "object",
+        "properties": {
+          "marked": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of rows that transitioned from unread to read."
+          }
+        }
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "description": "Bell-badge count.",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of unread notifications for the caller.",
+            "example": 3
+          }
+        }
+      },
+      "CreateTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Canonical type key.",
+            "example": "LEAVE_APPROVED",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label for preference toggles and admin lists.",
+            "example": "Leave fully approved",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "description": "One-line explanation of when this notification fires."
+          },
+          "titleTpl": {
+            "type": "string",
+            "description": "Title template.",
+            "example": "Your leave was approved",
+            "minLength": 1
+          },
+          "bodyTpl": {
+            "type": "string",
+            "description": "Body template."
+          },
+          "linkTpl": {
+            "type": "string",
+            "description": "Link template.",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "category": {
+            "type": "string",
+            "description": "Coarse grouping for the bell UI.",
+            "enum": [
+              "APPROVAL",
+              "ANNOUNCEMENT",
+              "SYSTEM",
+              "PAYROLL"
+            ]
+          }
+        },
+        "required": [
+          "titleTpl",
+          "type"
+        ]
+      },
+      "TemplateDto": {
+        "type": "object",
+        "description": "Renderable template for a notification type.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Internal id."
+          },
+          "type": {
+            "type": "string",
+            "description": "Canonical type key.",
+            "example": "LEAVE_APPROVED"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable label for preference toggles and admin lists.",
+            "example": "Leave fully approved"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One-line explanation of when this notification fires."
+          },
+          "titleTpl": {
+            "type": "string",
+            "description": "Title template (Mustache-style {{placeholders}})."
+          },
+          "bodyTpl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Body template."
+          },
+          "linkTpl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link template."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coarse grouping.",
+            "enum": [
+              "APPROVAL",
+              "ANNOUNCEMENT",
+              "SYSTEM",
+              "PAYROLL"
+            ]
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Inactive templates are skipped at dispatch time."
+          }
+        }
+      },
+      "AnnounceRequest": {
+        "type": "object",
+        "description": "Admin broadcast. The list of recipient user ids is resolved by the caller — typically the BFF's department/role-based picker. The notification service just fans out N rows + N publishes.",
+        "properties": {
+          "userIds": {
+            "type": "array",
+            "description": "Recipient user ids.",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "minItems": 1
+          },
+          "title": {
+            "type": "string",
+            "description": "Title shown to recipients.",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "body": {
+            "type": "string",
+            "description": "Body shown to recipients."
+          },
+          "link": {
+            "type": "string",
+            "description": "Optional deep link.",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority hint; defaults to NORMAL.",
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "userIds"
+        ]
+      },
+      "AnnounceResponse": {
+        "type": "object",
+        "properties": {
+          "delivered": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of notifications inserted."
+          }
+        }
+      },
+      "UpdatePreferencesRequest": {
+        "type": "object",
+        "description": "Sparse map of notification type → enabled flag. Only the keys present are touched.",
+        "properties": {
+          "preferences": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "description": "Type → enabled toggle. Pass `false` to opt out of a type.",
+            "example": {
+              "LEAVE_APPROVED": false,
+              "PAYSLIP_READY": true
+            }
+          }
+        },
+        "required": [
+          "preferences"
+        ]
+      },
+      "PreferenceDto": {
+        "type": "object",
+        "description": "Per-user-per-type opt-out toggle.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Notification type.",
+            "example": "LEAVE_APPROVED"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "True if the user wants this type delivered."
+          }
+        }
+      },
+      "UpdateTemplateRequest": {
+        "type": "object",
+        "description": "Patch — only non-null fields apply.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "New label.",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "description": "New description."
+          },
+          "titleTpl": {
+            "type": "string",
+            "description": "New title template."
+          },
+          "bodyTpl": {
+            "type": "string",
+            "description": "New body template."
+          },
+          "linkTpl": {
+            "type": "string",
+            "description": "New link template.",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "category": {
+            "type": "string",
+            "description": "New category.",
+            "enum": [
+              "APPROVAL",
+              "ANNOUNCEMENT",
+              "SYSTEM",
+              "PAYROLL"
+            ]
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Activate/deactivate."
+          }
+        }
+      },
+      "PageResponseNotificationDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationDto"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sort": {
+            "type": "string"
+          }
+        }
+      },
+      "NotificationTypeDto": {
+        "type": "object",
+        "description": "Type catalog entry — what the FE preferences page and admin templates list render. Backed by the active row in notification_templates for that type.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Canonical type key.",
+            "example": "LEAVE_APPROVED"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label for the toggle row.",
+            "example": "Leave fully approved"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One-line explanation of when this notification fires."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coarse grouping for category filters.",
+            "enum": [
+              "APPROVAL",
+              "ANNOUNCEMENT",
+              "SYSTEM",
+              "PAYROLL"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Authorization": {
+        "type": "http",
+        "description": "Paste the access token returned from POST /auth/login (without the 'Bearer ' prefix).",
+        "name": "Authorization",
+        "in": "header",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

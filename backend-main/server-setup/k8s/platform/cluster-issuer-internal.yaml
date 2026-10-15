@@ -1,0 +1,42 @@
+# Internal CA bootstrap for cert-manager.
+#
+#   selfsigned-bootstrap (ClusterIssuer)  →  signs the root CA cert
+#   internal-ca (Certificate, isCA: true) →  stored as Secret in `ingress` ns
+#   internal-ca (ClusterIssuer)           →  uses that secret to sign app certs
+#
+# Apps reference `internal-ca` ClusterIssuer in their Certificate resources.
+# Dev laptops trust the root CA once (export from secret/internal-ca → tls.crt).
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+  namespace: ingress
+spec:
+  isCA: true
+  commonName: fshrms-internal-ca
+  secretName: internal-ca
+  duration: 87600h   # 10y
+  renewBefore: 8760h #  1y
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca
+spec:
+  ca:
+    secretName: internal-ca

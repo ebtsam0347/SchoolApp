@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Department Wise — each department's headcount broken down by one attribute
+  (grade, gender, religion, blood group, age band, ...), split by gender with
+  the value's share of the department. The last block, "All Departments", is
+  the company-wide breakdown and is highlighted.
+
+  Data contract: DepartmentWiseReportService. One row per (department, value)
+  with male / female / other / total / share, already sorted; this template
+  groups by department for subtotals. $P{valueHeading} names the attribute
+  column. Grand totals come in as parameters.
+
+  Same fixed print identity as department-strength.jrxml: accent #9A2D2A on
+  rules and department titles, body #1A1714, labels #4A413A, zebra #F8F4ED,
+  rules #E5DDD0. Inline SansSerif fonts, never size 13.
+-->
+<jasperReport whenNoDataType="AllSectionsNoDetail" xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="department-wise" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              uuid="9c5c3d36-1234-4abc-8000-000000000070">
+
+    <style name="row.zebra" mode="Opaque" backcolor="#FFFFFF">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[new Boolean($V{deptGroup_COUNT}.intValue() % 2 == 0)]]></conditionExpression>
+            <style backcolor="#F8F4ED"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="companyName"    class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="reportTitle"    class="java.lang.String"/>
+    <parameter name="reportPeriod"   class="java.lang.String"/>
+    <parameter name="generatedBy"    class="java.lang.String"/>
+    <parameter name="generatedAt"    class="java.lang.String"/>
+    <parameter name="totalMale"      class="java.lang.Integer"/>
+    <parameter name="totalFemale"    class="java.lang.Integer"/>
+    <parameter name="totalOther"     class="java.lang.Integer"/>
+    <parameter name="totalAll"       class="java.lang.Integer"/>
+    <parameter name="valueHeading"   class="java.lang.String"/>
+
+    <field name="department"  class="java.lang.String"/>
+    <field name="value"       class="java.lang.String"/>
+    <field name="male"        class="java.lang.Integer"/>
+    <field name="female"      class="java.lang.Integer"/>
+    <field name="other"       class="java.lang.Integer"/>
+    <field name="total"       class="java.lang.Integer"/>
+    <field name="share"       class="java.lang.String"/>
+
+    <variable name="deptMale" class="java.lang.Integer" resetType="Group" resetGroup="deptGroup" calculation="Sum">
+        <variableExpression><![CDATA[$F{male}]]></variableExpression>
+    </variable>
+    <variable name="deptFemale" class="java.lang.Integer" resetType="Group" resetGroup="deptGroup" calculation="Sum">
+        <variableExpression><![CDATA[$F{female}]]></variableExpression>
+    </variable>
+    <variable name="deptOther" class="java.lang.Integer" resetType="Group" resetGroup="deptGroup" calculation="Sum">
+        <variableExpression><![CDATA[$F{other}]]></variableExpression>
+    </variable>
+    <variable name="deptTotal" class="java.lang.Integer" resetType="Group" resetGroup="deptGroup" calculation="Sum">
+        <variableExpression><![CDATA[$F{total}]]></variableExpression>
+    </variable>
+    <group name="deptGroup" minHeightToStartNewPage="80">
+        <groupExpression><![CDATA[$F{department}]]></groupExpression>
+        <groupHeader>
+            <band height="24" splitType="Prevent">
+                <textField isBlankWhenNull="true">
+                    <reportElement x="0" y="8" width="555" height="16" forecolor="#9A2D2A"/>
+                    <box><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                    <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="11" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA["All Departments".equals($F{department}) ? "ALL DEPARTMENTS  (COMPANY-WIDE)" : $F{department}.toUpperCase()]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="22" splitType="Prevent">
+                <line>
+                    <reportElement x="255" y="1" width="300" height="1" forecolor="#1A1714"/>
+                </line>
+                <textField>
+                    <reportElement x="0" y="4" width="255" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="6"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$F{department} + " Total"]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="255" y="4" width="60" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="4"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$V{deptMale}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="315" y="4" width="60" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="4"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$V{deptFemale}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="375" y="4" width="60" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="4"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$V{deptOther}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="435" y="4" width="60" height="15" forecolor="#1A1714"/>
+                    <box rightPadding="4"/>
+                    <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                    <textFieldExpression><![CDATA[$V{deptTotal}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupFooter>
+    </group>
+
+    <title>
+        <band height="82" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="555" height="16" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="12" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="17" width="555" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{companyAddress}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="36" width="555" height="20" forecolor="#1A1714"/>
+                <textElement><font fontName="SansSerif" size="14" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[($P{reportTitle} == null || $P{reportTitle}.isEmpty())
+                    ? "Department Wise" : $P{reportTitle}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="57" width="555" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{reportPeriod}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="76" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="255" height="20" forecolor="#1A1714"/>
+                <box leftPadding="8" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{valueHeading}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="255" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Male]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="315" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Female]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="375" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Not Set]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="435" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Total]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="495" y="0" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4" bottomPadding="3"><bottomPen lineWidth="1.5" lineColor="#9A2D2A"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Bottom"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[Share]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Prevent">
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="0" y="0" width="255" height="16" forecolor="#1A1714"/>
+                <box leftPadding="8" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{value}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="255" y="0" width="60" height="16" forecolor="#1A1714"/>
+                <box rightPadding="4" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{male}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="315" y="0" width="60" height="16" forecolor="#1A1714"/>
+                <box rightPadding="4" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{female}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="375" y="0" width="60" height="16" forecolor="#1A1714"/>
+                <box rightPadding="4" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{other}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="435" y="0" width="60" height="16" forecolor="#1A1714"/>
+                <box rightPadding="4" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="row.zebra" stretchType="RelativeToTallestObject" x="495" y="0" width="60" height="16" forecolor="#4A413A"/>
+                <box rightPadding="4" topPadding="2"><bottomPen lineWidth="0.5" lineColor="#E5DDD0"/></box>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$F{share}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="28">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" forecolor="#E5DDD0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="6" width="380" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7" isItalic="true" pdfFontName="Helvetica-Oblique"/></textElement>
+                <textFieldExpression><![CDATA[
+                    (($P{generatedBy} == null || $P{generatedBy}.isEmpty()) ? "" : "Generated by: " + $P{generatedBy} + "   ")
+                    + (($P{generatedAt} == null || $P{generatedAt}.isEmpty()) ? "" : "Generated at: " + $P{generatedAt})
+                ]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="380" y="6" width="90" height="12" forecolor="#4A413A"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="470" y="6" width="85" height="12" forecolor="#4A413A"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="18" width="555" height="10" forecolor="#4A413A"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isItalic="true" pdfFontName="Helvetica-Oblique"/></textElement>
+                <text><![CDATA[Confidential — For authorized use only]]></text>
+            </staticText>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="34" splitType="Prevent">
+            <line>
+                <reportElement x="0" y="4" width="555" height="2" forecolor="#9A2D2A"/>
+                <graphicElement><pen lineWidth="1.5"/></graphicElement>
+            </line>
+            <staticText>
+                <reportElement x="0" y="10" width="255" height="20" forecolor="#1A1714"/>
+                <box rightPadding="6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <text><![CDATA[TOTAL EMPLOYEES]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="255" y="10" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalMale}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="315" y="10" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalFemale}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="375" y="10" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalOther}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="435" y="10" width="60" height="20" forecolor="#1A1714"/>
+                <box rightPadding="4"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="12" isBold="true" pdfFontName="Helvetica-Bold"/></textElement>
+                <textFieldExpression><![CDATA[$P{totalAll}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

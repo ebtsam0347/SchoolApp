@@ -1,0 +1,304 @@
+/*
+ * App-only design tokens, scoped per theme via [data-theme="…"].
+ *
+ * Why CSS instead of JS: theme-switching becomes a single attribute swap
+ * on <html data-theme>. No React re-render needed for these tokens —
+ * every component that uses var(--app-*) updates instantly.
+ *
+ * Mirrors the contract in src/theme/tokens.ts (AppTokens). Keep in sync.
+ */
+
+/* ============================================================
+ * Theme-independent scales (spacing, radius, transitions).
+ * Live on :root so they resolve under every [data-theme].
+ * ============================================================ */
+:root {
+  /* Spacing — 4px base; sm = 1×, md = 2×, lg = 3×, xl = 4×, xxl = 6×. */
+  --app-space-xxs: 2px;
+  --app-space-xs: 4px;
+  --app-space-sm: 8px;
+  --app-space-md: 16px;
+  --app-space-lg: 24px;
+  --app-space-xl: 32px;
+  --app-space-xxl: 48px;
+
+  /* Radius — sm matches AntD borderRadius, md/lg used for cards/panels. */
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-radius-lg: 16px;
+  --app-radius-full: 999px;
+
+  /* Transitions — fast for hover tints, normal for opens, slow for lifts. */
+  --app-transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --app-transition-normal: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --app-transition-slow: 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* ============================================================
+ * VELLUM (default, light) — editorial-newsprint
+ * ============================================================ */
+:root,
+/* Spirit — The Spirit of Islam School crest: royal blue, deep navy, gold. */
+:root[data-theme='spirit'] {
+  --app-sidebar-bg: #0c1e52;
+  --app-sidebar-bg-elevated: #132a68;
+  --app-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
+  --app-sidebar-bg-active: rgba(212, 169, 60, 0.16);
+  --app-sidebar-border: rgba(255, 255, 255, 0.08);
+  --app-sidebar-text: #d6ddf0;
+  --app-sidebar-text-muted: #8391b8;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #e8c25a;
+
+  --app-topbar-bg: rgba(255, 255, 255, 0.85);
+  --app-topbar-bg-scrolled: rgba(255, 255, 255, 0.95);
+  --app-topbar-border: #ebeff7;
+  --app-topbar-text: #0f1a33;
+  --app-topbar-text-muted: #3b4664;
+
+  /* gradient stays in the blues so white text reads on both ends;
+     gold is punctuation only (icons, rules). */
+  --app-accent-grad-from: #1d47b8;
+  --app-accent-grad-to: #2f6bd8;
+  --app-accent-glow: rgba(29, 71, 184, 0.3);
+
+  --app-on-accent-fg: #ffffff;
+  --app-on-accent-fg-muted: rgba(255, 255, 255, 0.8);
+  --app-on-accent-chip-bg: rgba(255, 255, 255, 0.16);
+  --app-on-accent-chip-border: rgba(255, 255, 255, 0.24);
+
+  --app-selection-bg: #1d47b8;
+  --app-selection-fg: #ffffff;
+
+  --app-footer-bg: #f4f6fb;
+  --app-footer-text: #6b7591;
+  --app-footer-border: #ebeff7;
+
+  /* shadows — navy-tinted */
+  --app-shadow-sm: 0 1px 2px rgba(12, 30, 82, 0.06);
+  --app-shadow-md: 0 4px 12px rgba(12, 30, 82, 0.08), 0 2px 4px rgba(12, 30, 82, 0.04);
+  --app-shadow-lg: 0 12px 32px rgba(12, 30, 82, 0.14), 0 4px 12px rgba(12, 30, 82, 0.06);
+}
+
+:root[data-theme='vellum'] {
+  /* sidebar — always dark; vellum's sidebar is warm ink */
+  --app-sidebar-bg: #1a1714;
+  --app-sidebar-bg-elevated: #261f1b;
+  --app-sidebar-bg-hover: rgba(255, 255, 255, 0.04);
+  --app-sidebar-bg-active: rgba(15, 118, 110, 0.18);
+  --app-sidebar-border: rgba(255, 255, 255, 0.06);
+  --app-sidebar-text: #d4cabe;
+  --app-sidebar-text-muted: #7c7368;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #5eead4;
+
+  /* topbar — theme-tinted glass */
+  --app-topbar-bg: rgba(252, 250, 245, 0.85);
+  --app-topbar-bg-scrolled: rgba(252, 250, 245, 0.95);
+  --app-topbar-border: #efe9dc;
+  --app-topbar-text: #1a1714;
+  --app-topbar-text-muted: #4a413a;
+
+  /* accent — brand → secondary, used for gradients, focus rings, active bars */
+  --app-accent-grad-from: #9a2d2a;
+  --app-accent-grad-to: #0f766e;
+  --app-accent-glow: rgba(154, 45, 42, 0.28);
+
+  /* on-accent — text & chips placed ON TOP of the accent gradient. Each theme
+     picks a foreground that contrasts with its lighter gradient stop so heroes
+     stay legible regardless of where the gradient lands. */
+  --app-on-accent-fg: #fffaf0;
+  --app-on-accent-fg-muted: rgba(255, 250, 240, 0.78);
+  --app-on-accent-chip-bg: rgba(255, 255, 255, 0.18);
+  --app-on-accent-chip-border: rgba(255, 255, 255, 0.24);
+
+  /* text selection — solid brand on white text for guaranteed contrast */
+  --app-selection-bg: #9a2d2a;
+  --app-selection-fg: #ffffff;
+
+  /* footer */
+  --app-footer-bg: #f8f4ed;
+  --app-footer-text: #8c8175;
+  --app-footer-border: #efe9dc;
+
+  /* shadows — warm-tinted for the cream surface */
+  --app-shadow-sm: 0 1px 2px rgba(60, 40, 30, 0.06);
+  --app-shadow-md: 0 4px 12px rgba(60, 40, 30, 0.08), 0 2px 4px rgba(60, 40, 30, 0.04);
+  --app-shadow-lg: 0 12px 32px rgba(60, 40, 30, 0.12), 0 4px 12px rgba(60, 40, 30, 0.06);
+}
+
+/* ============================================================
+ * KLEIN (light) — museum-bold
+ * ============================================================ */
+:root[data-theme='klein'] {
+  --app-sidebar-bg: #0a0a0a;
+  --app-sidebar-bg-elevated: #141414;
+  --app-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
+  --app-sidebar-bg-active: rgba(0, 47, 167, 0.22);
+  --app-sidebar-border: rgba(255, 255, 255, 0.08);
+  --app-sidebar-text: #e4e4e7;
+  --app-sidebar-text-muted: #71717a;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #d4ff00;
+
+  --app-topbar-bg: rgba(255, 255, 255, 0.85);
+  --app-topbar-bg-scrolled: rgba(255, 255, 255, 0.95);
+  --app-topbar-border: #e4e4e7;
+  --app-topbar-text: #0a0a0a;
+  --app-topbar-text-muted: #3f3f46;
+
+  --app-accent-grad-from: #002fa7;
+  --app-accent-grad-to: #d4ff00;
+  --app-accent-glow: rgba(0, 47, 167, 0.35);
+
+  /* on-accent — gradient ends in #d4ff00 (lime), white text fails there.
+     Black foreground reads on both deep-blue and lime ends. */
+  --app-on-accent-fg: #0a0a0a;
+  --app-on-accent-fg-muted: rgba(10, 10, 10, 0.72);
+  --app-on-accent-chip-bg: rgba(0, 0, 0, 0.14);
+  --app-on-accent-chip-border: rgba(0, 0, 0, 0.22);
+
+  --app-selection-bg: #002fa7;
+  --app-selection-fg: #ffffff;
+
+  --app-footer-bg: #ffffff;
+  --app-footer-text: #71717a;
+  --app-footer-border: #e4e4e7;
+
+  /* shadows — neutral grey, slightly stronger than vellum */
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --app-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --app-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================================
+ * LINEN (light) — Nordic soft
+ * ============================================================ */
+:root[data-theme='linen'] {
+  --app-sidebar-bg: #1f1b16;
+  --app-sidebar-bg-elevated: #2a251e;
+  --app-sidebar-bg-hover: rgba(255, 255, 255, 0.04);
+  --app-sidebar-bg-active: rgba(180, 83, 9, 0.2);
+  --app-sidebar-border: rgba(255, 255, 255, 0.06);
+  --app-sidebar-text: #d6cdbe;
+  --app-sidebar-text-muted: #8e8478;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #f59e0b;
+
+  --app-topbar-bg: rgba(251, 247, 239, 0.85);
+  --app-topbar-bg-scrolled: rgba(251, 247, 239, 0.95);
+  --app-topbar-border: #e8e0d2;
+  --app-topbar-text: #2b2926;
+  --app-topbar-text-muted: #5c544a;
+
+  --app-accent-grad-from: #1e3a8a;
+  --app-accent-grad-to: #b45309;
+  --app-accent-glow: rgba(180, 83, 9, 0.3);
+
+  /* on-accent — both gradient stops are saturated mid-darks; warm off-white
+     wins on navy & amber alike. */
+  --app-on-accent-fg: #fffaf0;
+  --app-on-accent-fg-muted: rgba(255, 250, 240, 0.80);
+  --app-on-accent-chip-bg: rgba(255, 255, 255, 0.20);
+  --app-on-accent-chip-border: rgba(255, 255, 255, 0.28);
+
+  --app-selection-bg: #1e3a8a;
+  --app-selection-fg: #ffffff;
+
+  --app-footer-bg: #f1ece3;
+  --app-footer-text: #8e8478;
+  --app-footer-border: #e8e0d2;
+
+  /* shadows — muted ochre tint for the linen surface */
+  --app-shadow-sm: 0 1px 2px rgba(50, 40, 25, 0.06);
+  --app-shadow-md: 0 4px 12px rgba(50, 40, 25, 0.08), 0 2px 4px rgba(50, 40, 25, 0.04);
+  --app-shadow-lg: 0 12px 32px rgba(50, 40, 25, 0.12), 0 4px 12px rgba(50, 40, 25, 0.06);
+}
+
+/* ============================================================
+ * TOKYO NIGHT (dark) — dev-respected
+ * ============================================================ */
+:root[data-theme='tokyo-night'] {
+  --app-sidebar-bg: #16161e;
+  --app-sidebar-bg-elevated: #1f2030;
+  --app-sidebar-bg-hover: rgba(122, 162, 247, 0.06);
+  --app-sidebar-bg-active: rgba(187, 154, 247, 0.18);
+  --app-sidebar-border: rgba(255, 255, 255, 0.04);
+  --app-sidebar-text: #a9b1d6;
+  --app-sidebar-text-muted: #565f89;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #bb9af7;
+
+  --app-topbar-bg: rgba(36, 40, 59, 0.78);
+  --app-topbar-bg-scrolled: rgba(36, 40, 59, 0.92);
+  --app-topbar-border: #2f334d;
+  --app-topbar-text: #c0caf5;
+  --app-topbar-text-muted: #9aa5ce;
+
+  --app-accent-grad-from: #7aa2f7;
+  --app-accent-grad-to: #bb9af7;
+  --app-accent-glow: rgba(187, 154, 247, 0.4);
+
+  /* on-accent — accent stops are LIGHT (light blue → light purple) on the
+     dark surface, so foreground inverts to the theme's deep navy. */
+  --app-on-accent-fg: #16161e;
+  --app-on-accent-fg-muted: rgba(22, 22, 30, 0.72);
+  --app-on-accent-chip-bg: rgba(0, 0, 0, 0.14);
+  --app-on-accent-chip-border: rgba(0, 0, 0, 0.22);
+
+  /* dark surface → bright accent + near-black text reads best */
+  --app-selection-bg: #bb9af7;
+  --app-selection-fg: #16161e;
+
+  --app-footer-bg: #1a1b26;
+  --app-footer-text: #565f89;
+  --app-footer-border: #2f334d;
+
+  /* shadows — sharper black on the deep navy surface */
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --app-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --app-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+ * GRAPHITE (dark) — minimalist-studio
+ * ============================================================ */
+:root[data-theme='graphite'] {
+  --app-sidebar-bg: #000000;
+  --app-sidebar-bg-elevated: #0a0a0a;
+  --app-sidebar-bg-hover: rgba(255, 255, 255, 0.04);
+  --app-sidebar-bg-active: rgba(251, 113, 133, 0.18);
+  --app-sidebar-border: rgba(255, 255, 255, 0.06);
+  --app-sidebar-text: #d4d4d4;
+  --app-sidebar-text-muted: #6b6b6b;
+  --app-sidebar-text-active: #ffffff;
+  --app-sidebar-icon-active: #fb7185;
+
+  --app-topbar-bg: rgba(26, 26, 26, 0.8);
+  --app-topbar-bg-scrolled: rgba(26, 26, 26, 0.92);
+  --app-topbar-border: #2e2e2e;
+  --app-topbar-text: #f4f4f4;
+  --app-topbar-text-muted: #a8a8a8;
+
+  --app-accent-grad-from: #fb7185;
+  --app-accent-grad-to: #fda4af;
+  --app-accent-glow: rgba(251, 113, 133, 0.4);
+
+  /* on-accent — accent stops are LIGHT pinks; near-black foreground reads. */
+  --app-on-accent-fg: #0a0a0a;
+  --app-on-accent-fg-muted: rgba(10, 10, 10, 0.72);
+  --app-on-accent-chip-bg: rgba(0, 0, 0, 0.16);
+  --app-on-accent-chip-border: rgba(0, 0, 0, 0.24);
+
+  --app-selection-bg: #fb7185;
+  --app-selection-fg: #0a0a0a;
+
+  --app-footer-bg: #0f0f0f;
+  --app-footer-text: #6b6b6b;
+  --app-footer-border: #2e2e2e;
+
+  /* shadows — pure black, slightly stronger than tokyo-night */
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --app-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --app-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.4);
+}

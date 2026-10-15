@@ -1,0 +1,140 @@
+# Tables to replicate from legacy MSSQL (WebHRMS, dbo schema) into local
+# Postgres `staging` schema. Run with `replicate.py`.
+#
+# Edit by commenting / uncommenting the table name. The replicator reads
+# `tables` as a flat list of strings.
+#
+# Curated 2026-05-01 against `triage.md`. Out-of-scope modules (assets,
+# documents, evaluation, requisitions, kaizen, fairprice, medical, prayer,
+# ANPR/visitors, canteen, factory ops, Django framework) are excluded.
+
+source_schema: dbo
+target_schema: staging
+
+# Default cutoff for entries that set `since_column`.
+#
+# `since_date` is an ABSOLUTE date and takes precedence over `since_days`.
+# Prod cutover carries the current fiscal year only (FY 2026-27, Jul-Jun),
+# so the windowed tables start at 2026-07-01 and the legacy system stays
+# the archive of record for anything older. A rolling `since_days` would
+# quietly move that boundary every day the cutover slips, which is why the
+# fiscal-year load is pinned to a date instead.
+#
+# Override per-table with `since_date:` or `since_days:` on the entry.
+defaults:
+  since_date: 2026-07-01
+
+tables:
+
+  # ── employee master ───────────────────────────────────────────────────
+  - apis_employeinfo                              # 23,751   primary employee row
+  - apis_empcompanyinfo                           # 23,742   company-side employment info
+  - apis_empeducation                             #    367
+  - apis_experience                               #     46
+  - TerminationInfo                               #     39
+  # - apis_emp_doc_info                             #      0   schema only — empty
+  # - apis_empsuspendinfo                           #      0
+  # - employee                                    #      7   newer Django stub, unclear — uncomment if needed
+  # - employees                                   #      0
+  # - users                                       #      0
+
+  # ── catalog / lookups ─────────────────────────────────────────────────
+  - apis_department                               #     43
+  - apis_section                                  #    304
+  - apis_designations                             #    688
+  - apis_addgrade                                 #     20
+  - apis_addqualification                         #     14
+  - apis_adddisability                            #     78
+  - apis_addnoticereasons                         #     13
+  - apis_addnoticetype                            #      4
+  - apis_city                                     #     51
+  - apis_country                                  #      0
+  - apis_company                                  #      0
+  - apis_companybranch                            #      2
+  - apis_employeecategory                         #     23
+  - apis_bankdetail                               #     14
+  - apis_education                                #  7,264   degrees/qualifications catalog
+  - apis_certificate                              #    110
+  - apis_skills                                   #      1
+  - apis_appauthority                             #      4
+  - apis_financialperiod                          #      4
+  - apis_reason                                   #      3
+  - apis_shift                                    #      9   shift catalog (used by attendance)
+
+  # ── attendance ────────────────────────────────────────────────────────
+  - apis_hrm_hr_holidays                          #     55
+  # - tbl_ATT_LOG                                   # 6,506,508 raw device punches (1.3 GB)
+  - { name: PayRoll_payroll_attendance, since_column: AttDate }            #   927,393  since FY start
+  # - PayRoll_payroll_attendance_1                  # 2,125,725
+  # - PayRoll_payroll_attendance_2                  #         0
+  # - PayRoll_payroll_attendance_3                  # 7,115,790
+  # - tbl_Attendance_Short                          # 7,727,284
+  # - tbl_Attendance_Transactions                   #    88,494
+  # - Tbl_Attendance_PreCopy                        #   409,440
+  # - Payroll_Attendance_Compliance                 # 6,718,725 post-processed/canonical attendance
+  # - liveAttendance                                #     1,062
+  # - PayRoll_regularization                        #     2,112
+  - PayRoll_payroll_deviceinfo                    #       171
+  - PayRoll_payroll_securityroster                #       156
+  # - Tbl_Att_devices                               #         1
+
+  # ── leaves ────────────────────────────────────────────────────────────
+  - apis_hrm_hr_leavesquota                       #         9
+  - { name: PayRoll_payroll_leaves,      since_column: LeaveSTDate }       #   712,779  since FY start
+  - { name: PayRoll_payroll_shortleaves, since_column: LeaveDate }         #    93,381  since FY start
+  - { name: PayRoll_payroll_absentrecord, since_column: LeaveDate }        #   372,662  since FY start
+  - Account_account_annualleavetransactions       #    35,118
+  # - Leaves_Compliance                             #    11,355
+  # - Payroll_Leaves_Compliance                     #    81,339
+  # - Payroll_Absent_Compliance                     #    76,164
+  # - PayRoll_meal                                # 3,492,402 meal allowance log — confirm this belongs in leaves vs payroll vs skip
+
+  # ── payroll: salary base ──────────────────────────────────────────────
+  - apis_salary_combined                          #    59,258 active comp snapshot
+  # - apis_managementallowances                     #     1,295
+  # - apis_managementallowancestransaction          #     8,358
+  # - manageAllEmpAllow                             #     5,190
+  # - apis_salary                                   #         0 schema only
+  # - apis_salary_ded                               #         0
+  # - apis_salary_policy                            #         0
+
+  # ── payroll: transactions ─────────────────────────────────────────────
+  - { name: Account_acc_salary_transactions, since_column: SalaryMonth }   #   447,012  since FY start (by SalaryMonth)
+  # - Account_acc_salary_transactions_Compliance    #   363,069 canonical/locked salary lines
+  - Account_account_bonusno                       #        12
+  - Account_account_bonusnosetting                #        21
+  - Account_account_bonustransactions             #    88,335
+  - Account_acctermination                        #     8,097
+  # - Account_acctermination_Compliance             #     7,761
+
+  # ── payroll: advances ─────────────────────────────────────────────────
+  - { name: Account_acc_permanent_advances,           since_column: TransactionDate } #    34,023  since FY start
+  - { name: Account_acc_permanent_advance_deductions, since_column: TransactionDate } #   237,981  since FY start
+  - { name: Account_acc_short_term_advances,          since_column: adv_month }       #   319,851  since FY start (by adv_month)
+  - { name: Account_acc_short_term_advances_head,     since_column: adv_month }       #    12,645  since FY start (by adv_month)
+
+  # ── payroll: history / statutory ──────────────────────────────────────
+  - Account_acc_employee_grade_history            #    94,520
+  - { name: Account_pessi_salary, since_column: SalaryMonth }              #     5,157  since FY start (by SalaryMonth)
+
+  # ── payroll: overtime ─────────────────────────────────────────────────
+  - { name: Account_overtime_record,      since_column: AttDate }          #   525,237  since FY start
+  - { name: Account_overtime_calculation, since_column: EntryDate }        #    81,990  since FY start
+  - { name: PayRoll_overtime_head,        since_column: OTDate }           #    38,373  since FY start
+  # - PayRoll_overtime_detail                       #         0
+  - { name: PayRoll_payroll_overtime_request, since_column: OTDate }       #   162,687  since FY start
+  # - PayRoll_payroll_overtime_request_detail       #         0
+
+  # ── change-history / audit-log tables ─────────────────────────────────
+  # Disabled by default. Enable selectively if you want to migrate the
+  # legacy change history into your new audit service.
+  # - apis_empReportTo_log                        #   135,928
+  # - apis_empcompanyinfo_log                     #   121,270
+  # - PayRoll_payroll_attendance_log              #    52,056
+  # - PayRoll_payroll_leaves_log                  #    18,447
+  # - apis_salary_log                             #     6,267
+  # - apis_ShiftLog                               #     3,280
+  # - apis_GradeLog                               #     2,560
+  # - apis_designation_log                        #     2,457
+  # - apis_department_log                         #     1,563
+  # - Account_acctermination_log                  #       858
