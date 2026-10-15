@@ -4,7 +4,7 @@
 // service (any HTTPS webhook: a CRM, Google Apps Script, Zapier/Make, an
 // email relay…). Nothing is stored here and nothing is exposed publicly.
 //
-// Configure in Cloudflare Pages → Settings → Variables and Secrets:
+// Configure in Cloudflare Workers → Settings → Variables and Secrets:
 //   ENQUIRY_WEBHOOK_URL    (secret, required) — HTTPS endpoint to receive enquiries
 //   ENQUIRY_WEBHOOK_TOKEN  (secret, optional) — sent as "Authorization: Bearer <token>"
 //
@@ -34,7 +34,7 @@ function str(v: unknown, max: number): string | null {
   return t.length > 0 && t.length <= max ? t : null;
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export async function handleEnquiry(request: Request, env: Env): Promise<Response> {
   const webhook = env.ENQUIRY_WEBHOOK_URL;
   if (!webhook || !webhook.startsWith('https://')) {
     return json({ ok: false, error: 'not_configured' }, 503);
@@ -101,4 +101,4 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ ok: false, error: 'upstream' }, 502);
   }
   return json({ ok: true });
-};
+}

@@ -1,4 +1,4 @@
-// Same-origin proxy to the backend gateway, the Cloudflare Pages equivalent
+// Same-origin proxy to the backend gateway, the Cloudflare Worker equivalent
 // of the /api/ location in nginx.conf.template. Strips the /api prefix so the
 // gateway sees the same paths it gets in local dev. Response bodies are
 // streamed through, so SSE (chat, notifications) keeps working.
@@ -7,7 +7,7 @@ interface Env {
   UPSTREAM_GATEWAY: string;
 }
 
-export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
+export async function proxyApi(request: Request, env: Env): Promise<Response> {
   const upstream = env.UPSTREAM_GATEWAY?.replace(/\/+$/, '');
   if (!upstream) {
     return new Response('UPSTREAM_GATEWAY is not configured', { status: 500 });
@@ -31,4 +31,4 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
     redirect: 'manual',
   });
-};
+}

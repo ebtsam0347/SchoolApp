@@ -1,26 +1,28 @@
-# Deploying The Spirit of Islam School portal to Cloudflare Pages
+# Deploying The Spirit of Islam School portal to Cloudflare Workers
 
-The SPA is served by Cloudflare Pages; `/api/*` is proxied by the Pages Function
-in `functions/api/[[path]].ts` to the backend gateway (same as `nginx.conf.template`).
+The SPA is built to `dist/` and served as Workers static assets; `/api/*` is
+proxied by the Worker in `worker/api-proxy.ts` to the backend gateway (same as
+`nginx.conf.template`). Config lives in `wrangler.jsonc`; its `build.command`
+runs `npm run build` before every deploy, so the source is never uploaded as-is.
 
-The Java backend (gateway + services + Postgres) cannot run on Cloudflare Pages.
+The Java backend (gateway + services + Postgres) cannot run on Cloudflare Workers.
 Host it on a server/VPS and expose the gateway over HTTPS (directly, or with a
 Cloudflare Tunnel: `cloudflared tunnel --url http://localhost:8080`).
 
 ## One-time setup
 1. `npx wrangler login`
-2. Set `UPSTREAM_GATEWAY` in `wrangler.toml` to the gateway's public URL
-   (or in the dashboard: Pages project -> Settings -> Variables and Secrets).
+2. Set `UPSTREAM_GATEWAY` in `wrangler.jsonc` to the gateway's public URL
+   (or in the dashboard: Worker -> Settings -> Variables and Secrets).
 
 ## Deploy from the CLI
     npm run deploy
 
 ## Or deploy from Git (dashboard)
-Workers & Pages -> Create -> Pages -> Connect to Git, then:
+Workers & Pages -> the `schoolapp` Worker -> Settings -> Build, then:
 - Root directory: `frontend-main`
-- Build command: `npm run build`
-- Build output directory: `dist`
-- Environment variable: `UPSTREAM_GATEWAY=https://<your-gateway>`
+- Build command: leave empty (wrangler runs `npm run build` itself)
+- Deploy command: `npx wrangler deploy`
+- Variable: `UPSTREAM_GATEWAY=https://<your-gateway>`
 
 ## Local test with the Cloudflare runtime
     npm run cf:dev
@@ -32,7 +34,7 @@ The public school website lives at `/home`, `/our-philosophy`, `/learning-approa
 `/accessibility` (source: `src/routes/_site/`, `src/site/`). School details such as
 phone, email, address and social links are edited in `src/site/config.ts`.
 
-The admissions/contact form posts to the Pages Function `functions/forms/enquiry.ts`,
+The admissions/contact form posts to the Worker route in `worker/enquiry.ts`,
 which validates the submission and forwards it to the school's form service:
 
 | Variable | Type | Purpose |
@@ -43,4 +45,4 @@ which validates the submission and forwards it to the school's form service:
 
 Until `ENQUIRY_WEBHOOK_URL` is set, the form tells visitors their enquiry was **not**
 sent; it never shows a false success. `/sitemap.xml` and `/robots.txt` are served by
-functions and use the request origin automatically.
+the Worker and use the request origin automatically.

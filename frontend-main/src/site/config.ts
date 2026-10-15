@@ -44,7 +44,7 @@ export function siteUrl(): string {
   return typeof window === 'undefined' ? '' : window.location.origin;
 }
 
-/** Cloudflare Pages Function that forwards enquiries — see functions/forms/enquiry.ts. */
+/** Cloudflare Worker route that forwards enquiries — see worker/enquiry.ts. */
 export const ENQUIRY_ENDPOINT = '/forms/enquiry';
 
 export const NAV = [

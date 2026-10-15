@@ -3,7 +3,7 @@
 
 const DISALLOW = ['/api/', '/forms/', '/login', '/change-password', '/visit'];
 
-export const onRequestGet: PagesFunction = ({ request }) => {
+export function robots(request: Request): Response {
   const origin = new URL(request.url).origin;
   const body = ['User-agent: *', ...DISALLOW.map((p) => `Disallow: ${p}`), '', `Sitemap: ${origin}/sitemap.xml`, ''].join(
     '\n',
@@ -11,4 +11,4 @@ export const onRequestGet: PagesFunction = ({ request }) => {
   return new Response(body, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
   });
-};
+}
