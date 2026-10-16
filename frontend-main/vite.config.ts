@@ -30,5 +30,8 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
+    // Website images are served by the Cloudflare Worker (`npm run cf:dev`,
+    // port 8787), not the Vite dev server.
+    proxy: { '/media': 'http://localhost:8787' },
   },
 });

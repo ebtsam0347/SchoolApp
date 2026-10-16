@@ -27,6 +27,46 @@ Workers & Pages -> the `schoolapp` Worker -> Settings -> Build, then:
 ## Local test with the Cloudflare runtime
     npm run cf:dev
 
+## Website images (Gallery admin)
+
+Admins manage the photos on the public website from the staff portal, signed in
+with the normal admin login (role `ADMIN`):
+
+- **Admin → Website images → Page images** — pick a page and section, then choose a
+  gallery image or upload a new one and publish it.
+- **Admin → Website images → Gallery** — upload, search, edit details, replace,
+  reorder and delete images.
+
+How it works (all in the Worker, `worker/media.ts`):
+
+| Piece | Where |
+| --- | --- |
+| Image files | Workers KV namespace `schoolapp-media` (binding `MEDIA`), free tier: 1 GB, 1,000 writes/day, 100,000 reads/day |
+| Titles, alt text, categories, order, which slot shows which image | D1 database `schoolapp-media` (binding `DB`); tables are created automatically by `worker/schema.ts` |
+| Who may change images | Worker verifies the backend's RS256 access token against `<UPSTREAM_GATEWAY>/auth/.well-known/jwks.json` and requires the `ADMIN` role on every `/media/admin/*` call |
+| Public site | `GET /media/slots` (cached ~30 s) tells each `PhotoSlot` which image to show; files at `/media/file/<id>.<ext>` are immutable and cached for a year (a replacement gets a new URL) |
+
+Slots (page, section, label) are listed in `src/site/photo-slots.ts` and must match
+the keys in `src/site/content.ts`. Uploads: JPG, PNG, WebP up to 5 MB, validated by file
+content, stored under generated names.
+
+Setup (once): create the KV namespace and the D1 database, put their ids in
+`wrangler.jsonc`, then deploy. (Both are on Cloudflare's free plan; no card needed.)
+
+    npx wrangler kv namespace create schoolapp-media
+    npx wrangler d1 create schoolapp-media
+    npm run deploy
+
+Optional Worker variables: `JWKS_URL` / `JWKS_JSON` (override where the signing key
+comes from), `JWT_ISSUER`, `JWT_AUDIENCE` (extra token checks). Admin sign-in needs
+`UPSTREAM_GATEWAY` to point at the running backend. Until it does, the public site
+still works and simply shows the default illustrations.
+
+Tests: `npm run test:worker` (auth, validation, upload, replace, delete, permissions)
+
+KV is eventually consistent, so a just-published image can take up to a minute to appear
+in every region; the site shows the default illustration until then..
+
 ## Public website (enquiry form, sitemap)
 
 The public school website lives at `/home`, `/our-philosophy`, `/learning-approach`,

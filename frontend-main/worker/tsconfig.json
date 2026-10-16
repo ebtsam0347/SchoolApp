@@ -9,5 +9,6 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts", "../src/site/photo-slots.ts"],
+  "exclude": ["test"]
 }

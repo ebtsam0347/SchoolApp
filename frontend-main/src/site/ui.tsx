@@ -2,9 +2,10 @@
 
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Camera } from 'lucide-react';
-import { useId, type CSSProperties, type ReactNode } from 'react';
+import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import { PHOTOS, PILLARS, type PhotoKey } from './content';
 import { useReveal } from './hooks';
+import { usePublishedPhoto } from './published-photos';
 
 // ---------------------------------------------------------------------------
 // Reveal
@@ -96,7 +97,8 @@ export function ArrowLink({ children }: { children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Photos — illustrated placeholder until PHOTOS[key].src is set.
+// Photos — the image an admin published for this slot (see
+// published-photos.ts), else PHOTOS[key].src, else an illustrated placeholder.
 
 export function PhotoSlot({
   photo,
@@ -115,15 +117,21 @@ export function PhotoSlot({
 }) {
   const p = PHOTOS[photo];
   const Icon = p.icon;
+  const published = usePublishedPhoto(photo);
+  const src = published?.url ?? p.src;
+  // A URL that failed to load (deleted object, network) falls back to the
+  // placeholder instead of showing a broken-image icon.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   return (
     <figure
       className={`s-photo s-photo--${shape} s-photo--${tone} ${className ?? ''}`}
       style={{ aspectRatio: ratio }}
     >
-      {p.src ? (
+      {src && failedSrc !== src ? (
         <img
-          src={p.src}
-          alt={p.alt}
+          src={src}
+          alt={published?.alt || p.alt}
+          onError={() => setFailedSrc(src)}
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : undefined}
           decoding="async"

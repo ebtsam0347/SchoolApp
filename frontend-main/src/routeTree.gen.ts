@@ -102,10 +102,12 @@ import { Route as AppAiSearchRouteImport } from './routes/_app/ai/search'
 import { Route as AppAiPolicyRouteImport } from './routes/_app/ai/policy'
 import { Route as AppAiChatRouteImport } from './routes/_app/ai/chat'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
+import { Route as AppAdminSiteImagesRouteImport } from './routes/_app/admin/site-images'
 import { Route as AppAdminSagasRouteImport } from './routes/_app/admin/sagas'
 import { Route as AppAdminRolesRouteImport } from './routes/_app/admin/roles'
 import { Route as AppAdminNotificationsRouteImport } from './routes/_app/admin/notifications'
 import { Route as AppAdminLookupsRouteImport } from './routes/_app/admin/lookups'
+import { Route as AppAdminGalleryRouteImport } from './routes/_app/admin/gallery'
 import { Route as AppAdminEmployeeRequisitionRouteImport } from './routes/_app/admin/employee-requisition'
 import { Route as AppAdminDevicesRouteImport } from './routes/_app/admin/devices'
 import { Route as AppAdminBelongingIssuanceRouteImport } from './routes/_app/admin/belonging-issuance'
@@ -657,6 +659,11 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminSiteImagesRoute = AppAdminSiteImagesRouteImport.update({
+  id: '/site-images',
+  path: '/site-images',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminSagasRoute = AppAdminSagasRouteImport.update({
   id: '/sagas',
   path: '/sagas',
@@ -675,6 +682,11 @@ const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
 const AppAdminLookupsRoute = AppAdminLookupsRouteImport.update({
   id: '/lookups',
   path: '/lookups',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminGalleryRoute = AppAdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminEmployeeRequisitionRoute =
@@ -1150,10 +1162,12 @@ export interface FileRoutesByFullPath {
   '/admin/belonging-issuance': typeof AppAdminBelongingIssuanceRoute
   '/admin/devices': typeof AppAdminDevicesRouteWithChildren
   '/admin/employee-requisition': typeof AppAdminEmployeeRequisitionRoute
+  '/admin/gallery': typeof AppAdminGalleryRoute
   '/admin/lookups': typeof AppAdminLookupsRouteWithChildren
   '/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/admin/roles': typeof AppAdminRolesRoute
   '/admin/sagas': typeof AppAdminSagasRoute
+  '/admin/site-images': typeof AppAdminSiteImagesRoute
   '/admin/users': typeof AppAdminUsersRouteWithChildren
   '/ai/chat': typeof AppAiChatRoute
   '/ai/policy': typeof AppAiPolicyRoute
@@ -1318,9 +1332,11 @@ export interface FileRoutesByTo {
   '/admin/belonging-issuance': typeof AppAdminBelongingIssuanceRoute
   '/admin/devices': typeof AppAdminDevicesRouteWithChildren
   '/admin/employee-requisition': typeof AppAdminEmployeeRequisitionRoute
+  '/admin/gallery': typeof AppAdminGalleryRoute
   '/admin/lookups': typeof AppAdminLookupsRouteWithChildren
   '/admin/roles': typeof AppAdminRolesRoute
   '/admin/sagas': typeof AppAdminSagasRoute
+  '/admin/site-images': typeof AppAdminSiteImagesRoute
   '/admin/users': typeof AppAdminUsersRouteWithChildren
   '/ai/chat': typeof AppAiChatRoute
   '/ai/policy': typeof AppAiPolicyRoute
@@ -1495,10 +1511,12 @@ export interface FileRoutesById {
   '/_app/admin/belonging-issuance': typeof AppAdminBelongingIssuanceRoute
   '/_app/admin/devices': typeof AppAdminDevicesRouteWithChildren
   '/_app/admin/employee-requisition': typeof AppAdminEmployeeRequisitionRoute
+  '/_app/admin/gallery': typeof AppAdminGalleryRoute
   '/_app/admin/lookups': typeof AppAdminLookupsRouteWithChildren
   '/_app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/_app/admin/roles': typeof AppAdminRolesRoute
   '/_app/admin/sagas': typeof AppAdminSagasRoute
+  '/_app/admin/site-images': typeof AppAdminSiteImagesRoute
   '/_app/admin/users': typeof AppAdminUsersRouteWithChildren
   '/_app/ai/chat': typeof AppAiChatRoute
   '/_app/ai/policy': typeof AppAiPolicyRoute
@@ -1673,10 +1691,12 @@ export interface FileRouteTypes {
     | '/admin/belonging-issuance'
     | '/admin/devices'
     | '/admin/employee-requisition'
+    | '/admin/gallery'
     | '/admin/lookups'
     | '/admin/notifications'
     | '/admin/roles'
     | '/admin/sagas'
+    | '/admin/site-images'
     | '/admin/users'
     | '/ai/chat'
     | '/ai/policy'
@@ -1841,9 +1861,11 @@ export interface FileRouteTypes {
     | '/admin/belonging-issuance'
     | '/admin/devices'
     | '/admin/employee-requisition'
+    | '/admin/gallery'
     | '/admin/lookups'
     | '/admin/roles'
     | '/admin/sagas'
+    | '/admin/site-images'
     | '/admin/users'
     | '/ai/chat'
     | '/ai/policy'
@@ -2017,10 +2039,12 @@ export interface FileRouteTypes {
     | '/_app/admin/belonging-issuance'
     | '/_app/admin/devices'
     | '/_app/admin/employee-requisition'
+    | '/_app/admin/gallery'
     | '/_app/admin/lookups'
     | '/_app/admin/notifications'
     | '/_app/admin/roles'
     | '/_app/admin/sagas'
+    | '/_app/admin/site-images'
     | '/_app/admin/users'
     | '/_app/ai/chat'
     | '/_app/ai/policy'
@@ -2808,6 +2832,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminUsersRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/site-images': {
+      id: '/_app/admin/site-images'
+      path: '/site-images'
+      fullPath: '/admin/site-images'
+      preLoaderRoute: typeof AppAdminSiteImagesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/sagas': {
       id: '/_app/admin/sagas'
       path: '/sagas'
@@ -2834,6 +2865,13 @@ declare module '@tanstack/react-router' {
       path: '/lookups'
       fullPath: '/admin/lookups'
       preLoaderRoute: typeof AppAdminLookupsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/gallery': {
+      id: '/_app/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AppAdminGalleryRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/employee-requisition': {
@@ -3568,10 +3606,12 @@ interface AppAdminRouteChildren {
   AppAdminBelongingIssuanceRoute: typeof AppAdminBelongingIssuanceRoute
   AppAdminDevicesRoute: typeof AppAdminDevicesRouteWithChildren
   AppAdminEmployeeRequisitionRoute: typeof AppAdminEmployeeRequisitionRoute
+  AppAdminGalleryRoute: typeof AppAdminGalleryRoute
   AppAdminLookupsRoute: typeof AppAdminLookupsRouteWithChildren
   AppAdminNotificationsRoute: typeof AppAdminNotificationsRouteWithChildren
   AppAdminRolesRoute: typeof AppAdminRolesRoute
   AppAdminSagasRoute: typeof AppAdminSagasRoute
+  AppAdminSiteImagesRoute: typeof AppAdminSiteImagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRouteWithChildren
   AppAdminIndexRoute: typeof AppAdminIndexRoute
   AppAdminDevComponentsRoute: typeof AppAdminDevComponentsRoute
@@ -3582,10 +3622,12 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminBelongingIssuanceRoute: AppAdminBelongingIssuanceRoute,
   AppAdminDevicesRoute: AppAdminDevicesRouteWithChildren,
   AppAdminEmployeeRequisitionRoute: AppAdminEmployeeRequisitionRoute,
+  AppAdminGalleryRoute: AppAdminGalleryRoute,
   AppAdminLookupsRoute: AppAdminLookupsRouteWithChildren,
   AppAdminNotificationsRoute: AppAdminNotificationsRouteWithChildren,
   AppAdminRolesRoute: AppAdminRolesRoute,
   AppAdminSagasRoute: AppAdminSagasRoute,
+  AppAdminSiteImagesRoute: AppAdminSiteImagesRoute,
   AppAdminUsersRoute: AppAdminUsersRouteWithChildren,
   AppAdminIndexRoute: AppAdminIndexRoute,
   AppAdminDevComponentsRoute: AppAdminDevComponentsRoute,

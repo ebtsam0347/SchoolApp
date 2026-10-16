@@ -1,4 +1,6 @@
 import {
+  Images,
+  ImagePlus,
   Activity,
   Banknote,
   BarChart3,
@@ -546,6 +548,17 @@ export const hrNavGroups: NavGroup[] = [
         children: [
           { key: 'admin-announce', label: 'Announce', to: '/admin/notifications', subject: 'notification', verb: 'announce' },
           { key: 'admin-templates', label: 'Templates', to: '/admin/notifications/templates', subject: 'notification.template' },
+        ],
+      },
+      {
+        key: 'website-images',
+        label: 'Website images',
+        icon: Images,
+        // ADMIN only: the Worker's /media/admin API enforces the same role.
+        requiresRole: ['ADMIN'],
+        children: [
+          { key: 'admin-site-images', label: 'Page images', icon: ImagePlus, to: '/admin/site-images', requiresRole: ['ADMIN'] },
+          { key: 'admin-gallery', label: 'Gallery', icon: Images, to: '/admin/gallery', requiresRole: ['ADMIN'] },
         ],
       },
     ],
