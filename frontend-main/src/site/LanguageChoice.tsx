@@ -40,7 +40,7 @@ export function LanguagePrompt() {
           Choose your language
         </h2>
         <p className="s-lang-prompt__title s-lang-prompt__title--ur" lang="ur" dir="rtl">
-          اپنی زبان منتخب کریں
+          اپنی زبان چُنیں
         </p>
         <div className="s-lang-prompt__choices">
           <button ref={firstRef} type="button" className="s-lang-choice" lang="en" onClick={() => pick('en')}>

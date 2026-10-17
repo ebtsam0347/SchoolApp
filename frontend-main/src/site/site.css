@@ -2972,13 +2972,36 @@ a:focus-visible .s-arrow-link svg {
  * Urdu (right-to-left). <html lang="ur" dir="rtl"> is set by
  * useSiteLanguage() while the public site is shown.
  * ============================================================ */
+/* Urdu is set in Nastaliq, the script Pakistani readers expect. Nastaliq is
+   tall and slants down to the left, so it needs more line height and no
+   letter-spacing; headings get a little less size to keep the same rhythm. */
 html[lang='ur'] .site {
-  --s-font-head: 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
-  --s-font-body: 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
-  line-height: 1.9;
+  --s-font-head: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Noto Naskh Arabic', serif;
+  --s-font-body: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Noto Naskh Arabic', serif;
+  line-height: 2.15;
+  word-spacing: 0.05em;
 }
 html[lang='ur'] .site :is(h1, h2, h3, h4, .s-display, .s-h1, .s-h2, .s-h3, .s-h4) {
-  line-height: 1.5;
+  line-height: 1.9;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+html[lang='ur'] .site .s-display {
+  font-size: clamp(2.1rem, 5.2vw, 3.8rem);
+  letter-spacing: 0 !important;
+}
+html[lang='ur'] .site .s-brand__name {
+  line-height: 1.9;
+  overflow: visible;
+}
+html[lang='ur'] .site .s-brand__tag {
+  line-height: 1.8;
+}
+html[lang='ur'] .site :is(.s-btn, .s-chip, .s-nav__link, .s-mobile__link, .ant-btn, label, summary) {
+  line-height: 2;
+  letter-spacing: 0;
+}
+html[lang='ur'] .site :is(p, li, dd, .s-lede) {
   letter-spacing: 0;
 }
 html[lang='ur'] .site :is(.s-eyebrow, .s-brand__tag, .s-footer__h, .s-step-num) {
@@ -3047,8 +3070,10 @@ html[lang='ur'] .site :is(.s-eyebrow, .s-brand__tag, .s-footer__h, .s-step-num) 
 }
 .s-lang-prompt__title--ur,
 .s-lang-prompt__note--ur,
-.s-lang-choice--ur {
-  font-family: var(--s-font-ar);
+.s-lang-choice--ur,
+.s-lang-switch [lang='ur'] {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', var(--s-font-ar);
+  line-height: 2;
 }
 .s-lang-prompt__title--ur {
   margin-top: 0;
@@ -3115,8 +3140,7 @@ html[lang='ur'] .site :is(.s-eyebrow, .s-brand__tag, .s-footer__h, .s-step-num) 
   background: color-mix(in srgb, currentColor 10%, transparent);
 }
 .s-lang-switch [lang='ur'] {
-  font-family: var(--s-font-ar);
-  line-height: 1.2;
+  line-height: 1.6;
 }
 
 /* ============================================================
