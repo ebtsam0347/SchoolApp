@@ -15,7 +15,7 @@ function ContactPage() {
   usePageMeta({
     title: tr('Contact'),
     path: '/contact',
-    description: tr('Get in touch with The Spirit of Islam School with a question or to arrange a school visit.'),
+    description: tr('Contact The Spirit of Islam School with a question, or book a school visit.'),
   });
   const { mapEmbedUrl, address } = SCHOOL.contact;
 
@@ -28,7 +28,7 @@ function ContactPage() {
             {tr('Let’s')}{' '}<Hl>{tr('Talk')}</Hl>
           </>
         }
-        lede={tr('Have a question about our approach, programmes or admissions? Send us a message and we’ll get back to you.')}
+        lede={tr('Have a question? Send us a message and we will reply soon.')}
         photo="partnership"
       />
 
@@ -71,10 +71,10 @@ function ContactPage() {
             {tr('Prefer to See Us')}{' '}<Hl>{tr('in Person?')}</Hl>
           </>
         }
-        body={tr('Arrange a school visit and experience our approach first-hand.')}
+        body={tr('Book a visit and see our classrooms for yourself.')}
       >
         <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--light">
-          {tr('Arrange a School Visit')}<ArrowRight size={18} aria-hidden="true" />
+          {tr('Book a School Visit')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </CtaBand>
     </>

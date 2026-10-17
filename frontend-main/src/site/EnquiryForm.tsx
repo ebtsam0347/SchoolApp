@@ -9,7 +9,7 @@ import { CheckCircle2, Send } from 'lucide-react';
 import { useState } from 'react';
 import { ENQUIRY_ENDPOINT, SCHOOL } from './config';
 
-import { tr } from '@/site/i18n';
+import { isUrdu, tr, trf } from '@/site/i18n';
 export type EnquiryType = 'admissions' | 'visit' | 'general';
 
 type Values = {
@@ -26,8 +26,8 @@ type Values = {
 };
 
 const TYPE_OPTIONS = [
-  { value: 'admissions', label: SCHOOL.admissionsOpen ? tr('Admissions enquiry') : tr('Register interest in admissions') },
-  { value: 'visit', label: tr('Arrange a school visit') },
+  { value: 'admissions', label: SCHOOL.admissionsOpen ? tr('Admissions enquiry') : tr('Register for admissions') },
+  { value: 'visit', label: tr('Book a school visit') },
   { value: 'general', label: tr('General question') },
 ];
 
@@ -95,14 +95,14 @@ export function EnquiryForm({ defaultType = 'admissions' }: { defaultType?: Enqu
       className="s-form"
       onFinish={onFinish}
       disabled={status.kind === 'sending'}
-      initialValues={{ enquiryType: defaultType, contactMethod: 'email', consent: false }}
+      initialValues={{ enquiryType: defaultType, contactMethod: 'whatsapp', consent: false }}
       scrollToFirstError
     >
       {status.kind === 'error' && (
         <Alert type="error" showIcon className="s-form__alert" title={status.message} />
       )}
 
-      <Form.Item label={tr('What can we help with?')} name="enquiryType" rules={[{ required: true }]}>
+      <Form.Item label={tr('What would you like to do?')} name="enquiryType" rules={[{ required: true }]}>
         <Select options={TYPE_OPTIONS} />
       </Form.Item>
 
@@ -118,17 +118,7 @@ export function EnquiryForm({ defaultType = 'admissions' }: { defaultType?: Enqu
           <Input autoComplete="name" />
         </Form.Item>
         <Form.Item
-          label={tr('Email address')}
-          name="email"
-          rules={[
-            { required: true, message: tr('Please enter your email address.') },
-            { type: 'email', message: tr('Please enter a valid email address.') },
-          ]}
-        >
-          <Input type="email" autoComplete="email" inputMode="email" />
-        </Form.Item>
-        <Form.Item
-          label={tr('Phone number')}
+          label={tr('Phone / WhatsApp number')}
           name="phone"
           rules={[
             {
@@ -140,19 +130,29 @@ export function EnquiryForm({ defaultType = 'admissions' }: { defaultType?: Enqu
         >
           <Input type="tel" autoComplete="tel" inputMode="tel" />
         </Form.Item>
+        <Form.Item
+          label={tr('Email address')}
+          name="email"
+          rules={[
+            { required: contactMethod === 'email', message: tr('Please enter your email address.') },
+            { type: 'email', message: tr('Please enter a valid email address.') },
+          ]}
+        >
+          <Input type="email" autoComplete="email" inputMode="email" />
+        </Form.Item>
         {enquiryType !== 'general' && (
-          <Form.Item label={tr('Child’s age or intended programme')} name="ageGroup">
+          <Form.Item label={tr('Child’s age')} name="ageGroup">
             <Select options={AGE_OPTIONS} placeholder={tr('Select')} allowClear />
           </Form.Item>
         )}
       </div>
 
-      <Form.Item label={tr('Preferred contact method')} name="contactMethod" rules={[{ required: true }]}>
+      <Form.Item label={tr('How should we reply?')} name="contactMethod" rules={[{ required: true }]}>
         <Radio.Group
           options={[
-            { value: 'email', label: tr('Email') },
-            { value: 'phone', label: tr('Phone call') },
             { value: 'whatsapp', label: tr('WhatsApp') },
+            { value: 'phone', label: tr('Phone call') },
+            { value: 'email', label: tr('Email') },
           ]}
         />
       </Form.Item>
@@ -195,8 +195,14 @@ export function EnquiryForm({ defaultType = 'admissions' }: { defaultType?: Enqu
         </Checkbox>
       </Form.Item>
 
+      {SCHOOL.replyTime && (
+        <p className="s-form__reply" role="note">
+          {trf('We usually reply {time}.', { time: isUrdu ? SCHOOL.replyTime.ur : SCHOOL.replyTime.en })}
+        </p>
+      )}
+
       <p className="s-form__fine">
-        {tr('Please don’t include sensitive information about your child. We only use these details to reply to your enquiry.')}</p>
+        {tr('Please don’t share sensitive details about your child.')}</p>
 
       <Button
         type="primary"

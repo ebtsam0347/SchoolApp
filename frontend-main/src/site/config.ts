@@ -13,7 +13,7 @@ export const SCHOOL = {
   supportingTagline: tr('Rooted in Faith. Growing Through Discovery.'),
   essence: tr('Faith in the Heart. Curiosity in the Mind. Purpose in Every Discovery.'),
   mission:
-    tr('A modern Islamic early-years school where children explore, create and grow in character through meaningful, activity-based learning.'),
+    tr('An Islamic early-years school where children explore, create and build good character through hands-on learning.'),
   logo: '/icons/school-logo.png',
   logoAlt: tr('The Spirit of Islam School crest'),
 
@@ -27,6 +27,13 @@ export const SCHOOL = {
     /** Office hours, e.g. "Mon – Fri, 8:00 AM – 2:00 PM". */
     officeHours: null as string | null,
   },
+
+  /**
+   * How quickly the school replies to enquiries, shown next to the form and the
+   * quick-contact bar — only once the school commits to it. Example:
+   * { en: 'within one working day', ur: 'ایک کاروباری دن کے اندر' }
+   */
+  replyTime: null as { en: string; ur: string } | null,
 
   /** Only real, active accounts. Example: { label: 'Instagram', href: 'https://instagram.com/…' } */
   social: [] as { label: string; href: string }[],

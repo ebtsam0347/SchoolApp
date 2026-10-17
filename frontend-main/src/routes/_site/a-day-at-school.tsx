@@ -14,7 +14,7 @@ function DayPage() {
     title: tr('A Day at School'),
     path: '/a-day-at-school',
     description:
-      tr('Picture your child’s day at The Spirit of Islam School: morning circle, hands-on discovery, outdoor play, creative centres, Islamic stories and reflection.'),
+      tr('See a typical day at The Spirit of Islam School: circle time, hands-on learning, outdoor play and Islamic stories.'),
   });
 
   return (
@@ -23,10 +23,10 @@ function DayPage() {
         eyebrow={tr('A day at school')}
         title={
           <>
-            {tr('A Day of Wonder,')}{' '}<Hl>{tr('Warmth and Discovery')}</Hl>
+            {tr('A Happy Day of')}{' '}<Hl>{tr('Play and Discovery')}</Hl>
           </>
         }
-        lede={tr('Every day balances calm routines with exciting discoveries, active play with quiet reflection.')}
+        lede={tr('Calm routines, exciting discoveries and plenty of play — every single day.')}
         photo="story"
       />
 
@@ -37,7 +37,7 @@ function DayPage() {
             title={<span id="day-title">{tr('From Arrival to Home Time')}</span>}
           />
           <ProvisionalNote>
-            {tr('This is an example rhythm. The exact schedule will depend on your child’s age and the school’s operating model, and will be shared with families once confirmed.')}</ProvisionalNote>
+            {tr('This is a sample day. We will share the final timetable with families once it is confirmed.')}</ProvisionalNote>
 
           <ol className="s-daylong">
             {DAY_DETAIL.map((d, i) => {
@@ -82,10 +82,10 @@ function DayPage() {
             {tr('See It')}{' '}<Hl>{tr('for Yourself')}</Hl>
           </>
         }
-        body={tr('Arrange a visit to experience our learning spaces and meet the team.')}
+        body={tr('Visit us, see the classrooms and meet the teachers.')}
       >
         <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--light">
-          {tr('Arrange a School Visit')}<ArrowRight size={18} aria-hidden="true" />
+          {tr('Book a School Visit')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </CtaBand>
     </>

@@ -145,7 +145,10 @@ async function readUpload(form: FormData): Promise<{ bytes: Uint8Array; mime: st
   const kind = sniffImage(bytes);
   if (!kind) throw new HttpError(415, 'unsupported_type', 'Unsupported file. Upload a JPG, PNG or WebP image.');
   // The filename is only kept as a display label — never used in a storage key.
-  const name = file.name.replace(/[\u0000-\u001f\\/]/g, '').slice(0, 200);
+  const name = [...file.name]
+    .filter((c) => c.charCodeAt(0) >= 32 && c !== '/' && c !== '\\')
+    .join('')
+    .slice(0, 200);
   return { bytes, mime: kind.mime, ext: kind.ext, name };
 }
 

@@ -21,7 +21,7 @@ export function ContactDetails() {
   if (rows.length === 0) {
     return (
       <p className="s-contact-tba">
-        {tr('Our phone number, email and address will be published here once confirmed. In the meantime, the form is the best way to reach us.')}</p>
+        {tr('Our phone, email and address will appear here once confirmed. For now, please use the form.')}</p>
     );
   }
 

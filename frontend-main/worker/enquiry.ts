@@ -57,7 +57,9 @@ export async function handleEnquiry(request: Request, env: Env): Promise<Respons
   if (typeof body.website === 'string' && body.website.length > 0) return json({ ok: true });
 
   const parentName = str(body.parentName, 100);
-  const email = str(body.email, 200);
+  // Email is optional unless the family asked for an email reply; phone/WhatsApp
+  // is the usual channel, so it is required for those methods.
+  const email = body.email ? str(body.email, 200) : null;
   const phone = body.phone ? str(body.phone, 30) : null;
   const message = body.message ? str(body.message, 1000) : null;
   const ageGroup = body.ageGroup ? str(body.ageGroup, 40) : null;
@@ -67,8 +69,8 @@ export async function handleEnquiry(request: Request, env: Env): Promise<Respons
 
   if (
     !parentName ||
-    !email ||
-    !EMAIL.test(email) ||
+    (body.email && (!email || !EMAIL.test(email))) ||
+    (contactMethod === 'email' && !email) ||
     (phone && !PHONE.test(phone)) ||
     !enquiryType ||
     !contactMethod ||

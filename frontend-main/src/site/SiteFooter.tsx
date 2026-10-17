@@ -42,7 +42,7 @@ export function SiteFooter() {
               </li>
               <li>
                 <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry">
-                  {tr('Arrange a school visit')}</Link>
+                  {tr('Book a school visit')}</Link>
               </li>
               <li>
                 <Link to="/privacy">{tr('Privacy notice')}</Link>

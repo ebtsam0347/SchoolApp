@@ -3118,3 +3118,63 @@ html[lang='ur'] .site :is(.s-eyebrow, .s-brand__tag, .s-footer__h, .s-step-num) 
   font-family: var(--s-font-ar);
   line-height: 1.2;
 }
+
+/* ============================================================
+ * Hero trust points and the mobile quick-contact bar
+ * ============================================================ */
+.s-hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  color: color-mix(in srgb, #fff 88%, transparent);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.s-hero__trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.s-hero__trust svg {
+  color: var(--s-gold);
+}
+.s-form__reply {
+  margin: 0 0 8px;
+  font-weight: 600;
+  color: var(--s-royal);
+}
+.s-quick,
+.s-quick__spacer {
+  display: none;
+}
+@media (max-width: 899px) {
+  .s-quick__spacer {
+    display: block;
+    height: 76px;
+  }
+  .s-quick {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 90;
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--s-card) 94%, transparent);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--s-border-2);
+    box-shadow: 0 -8px 24px color-mix(in srgb, var(--s-navy) 10%, transparent);
+  }
+  .s-quick__btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .s-quick__wa {
+    background: #1fa855;
+    border-color: #1fa855;
+    color: #fff;
+  }
+}

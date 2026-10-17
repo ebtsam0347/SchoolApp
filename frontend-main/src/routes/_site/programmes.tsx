@@ -15,7 +15,7 @@ function ProgrammesPage() {
     title: tr('Our Programmes'),
     path: '/programmes',
     description:
-      tr('Proposed early-years, nursery, kindergarten and school-readiness programmes at The Spirit of Islam School, with learning objectives and example activities.'),
+      tr('Our planned programmes for ages 2–6: Early Years, Nursery, Kindergarten and School Readiness.'),
   });
 
   const [active, setActive] = useState(0);
@@ -44,7 +44,7 @@ function ProgrammesPage() {
             {tr('The Right Experience')}{' '}<Hl>{tr('for Every Stage')}</Hl>
           </>
         }
-        lede={tr('Our proposed programmes follow children’s development — from first explorations to confident readiness for formal school.')}
+        lede={tr('Our programmes grow with your child — from first steps in learning to being ready for big school.')}
         photo="classroom"
       />
 
@@ -55,7 +55,7 @@ function ProgrammesPage() {
             title={<span id="prog-title">{tr('Explore Each Programme')}</span>}
           />
           <ProvisionalNote>
-            {tr('These programmes are being planned. Age bands, availability and curriculum details are provisional and will be confirmed by the school before admissions open.')}</ProvisionalNote>
+            {tr('These programmes are still being planned. Ages and details may change before admissions open.')}</ProvisionalNote>
 
           <div className="s-tabs" role="tablist" aria-label={tr('Programmes')}>
             {PROGRAMMES.map((prog, i) => (
@@ -145,9 +145,9 @@ function ProgrammesPage() {
           />
           <ul className="s-cards-3">
             {[
-              { t: tr('Activity-based'), b: tr('Children learn through hands-on investigation, play and creative projects at every stage.') },
-              { t: tr('Values-centred'), b: tr('Islamic values shape routines, relationships and how children treat one another.') },
-              { t: tr('Child-paced'), b: tr('Teachers observe each child closely and adjust challenge to their readiness.') },
+              { t: tr('Activity-based'), b: tr('Hands-on activities, play and projects at every stage.') },
+              { t: tr('Values-centred'), b: tr('Islamic values guide daily routines and friendships.') },
+              { t: tr('Child-paced'), b: tr('Teachers watch each child and adjust the challenge.') },
             ].map((x, i) => (
               <Reveal as="li" key={x.t} delay={i} className="s-card">
                 <h3 className="s-h4">{x.t}</h3>
@@ -164,7 +164,7 @@ function ProgrammesPage() {
             {tr('Not Sure Which Stage')}{' '}<Hl>{tr('Fits?')}</Hl>
           </>
         }
-        body={tr('Tell us your child’s age and we’ll help you understand the right programme.')}
+        body={tr('Tell us your child’s age and we will suggest the right programme.')}
       >
         <Link to="/admissions" hash="enquiry" className="s-btn s-btn--light">
           {tr('Enquire About Admissions')}<ArrowRight size={18} aria-hidden="true" />

@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, CalendarCheck, Droplets, Lightbulb, Sprout } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Check, Droplets, Lightbulb, Sprout } from 'lucide-react';
 import { useEffect } from 'react';
 import { SCHOOL, siteUrl } from '@/site/config';
 import {
   APPROACH,
   CONTACT_PRINCIPLES,
-  DAY_GLIMPSE,
   GALLERY,
   SEQUENCE,
   VALUES,
@@ -35,7 +34,7 @@ function HomePage() {
     title: null,
     path: '/home',
     description:
-      tr('A modern Islamic early-years and kindergarten school where children explore, create, ask questions and grow in character through activity-based learning.'),
+      tr('A caring Islamic school for children aged 2–6. Children learn by exploring, asking questions and creating — with Islamic values every day.'),
   });
   useSchoolJsonLd();
 
@@ -48,7 +47,6 @@ function HomePage() {
       <Approach />
       <Values />
       <Gallery />
-      <DayGlimpse />
       <Partnership />
       <AdmissionsCta />
     </>
@@ -89,15 +87,27 @@ function Hero() {
             {tr('Little Questions.')}{' '}<Hl>{tr('Big Discoveries.')}</Hl>
           </h1>
           <p className="s-lede s-lede--lg s-enter" style={{ ['--d' as string]: 2 }}>
-            {tr('At')}{' '}{SCHOOL.name}{tr(', children explore, create, ask questions, and grow in character through meaningful experiences rooted in Islamic values.')}</p>
+            {tr('A caring Islamic school for ages 2–6, where children learn by exploring, asking questions and creating.')}
+          </p>
           <div className="s-actions s-enter" style={{ ['--d' as string]: 3 }}>
-            <Link to="/learning-approach" className="s-btn s-btn--light">
-              {tr('Discover Our Approach')}<ArrowRight size={18} aria-hidden="true" />
+            <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--light">
+              <CalendarCheck size={18} aria-hidden="true" />
+              {tr('Book a School Visit')}
             </Link>
-            <Link to="/admissions" hash="enquiry" className="s-btn s-btn--outline-light">
-              {tr('Enquire About Admissions')}</Link>
+            <Link to="/learning-approach" className="s-btn s-btn--outline-light">
+              {tr('See How We Teach')}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
           </div>
-          <p className="s-hero__motto s-enter" style={{ ['--d' as string]: 4 }}>
+          <ul className="s-hero__trust s-enter" style={{ ['--d' as string]: 4 }}>
+            {[tr('Ages 2–6'), tr('Islamic values every day'), tr('Learning through play')].map((t) => (
+              <li key={t}>
+                <Check size={16} strokeWidth={2.5} aria-hidden="true" />
+                {t}
+              </li>
+            ))}
+          </ul>
+          <p className="s-hero__motto s-enter" style={{ ['--d' as string]: 5 }}>
             <span className="s-hero__rule" aria-hidden="true" />
             {SCHOOL.tagline}
             {isUrdu ? '۔' : '.'}
@@ -136,14 +146,14 @@ function Philosophy() {
         <div className="s-split s-split--wide">
           <div>
             <Reveal>
-              <Eyebrow>{tr('Our belief')}</Eyebrow>
+              <Eyebrow>{tr('Why parents choose us')}</Eyebrow>
               <h2 id="philosophy-title" className="s-h2 s-h2--xl">
                 {tr('Education Is More Than')}{' '}<Hl>{tr('Memorising Answers.')}</Hl>
               </h2>
             </Reveal>
             <Reveal delay={1}>
               <p className="s-lede">
-                {tr('We believe early childhood is a time to wonder, explore, build, imagine, and discover. Our approach combines Islamic values with meaningful experiences that help children develop knowledge, character, confidence, and curiosity.')}</p>
+                {tr('Does your child ask “Why?” all day? Good — that is where learning begins. We turn that curiosity into knowledge, good character and confidence, guided by Islamic values.')}</p>
               <Link to="/our-philosophy" className="s-text-link">
                 <ArrowLink>{tr('Read our philosophy')}</ArrowLink>
               </Link>
@@ -179,13 +189,13 @@ function Pillars() {
     <section className="s-section s-section--tint" aria-labelledby="pillars-title">
       <div className="s-container">
         <SectionHead
-          eyebrow={tr('Six learning pillars')}
+          eyebrow={tr('What your child will gain')}
           title={
             <span id="pillars-title">
-              {tr('A Whole-Child Approach to')}{' '}<Hl>{tr('Early Learning')}</Hl>
+              {tr('Learning That Grows the')}{' '}<Hl>{tr('Whole Child')}</Hl>
             </span>
           }
-          lede={tr('Every experience is designed to grow the mind, the heart and the hands together.')}
+          lede={tr('Six things we build in every child, every day.')}
         />
         <PillarsGrid />
       </div>
@@ -206,7 +216,7 @@ function Discovery() {
               {tr('Learning Begins With a')}{' '}<Hl>{tr('Question.')}</Hl>
             </span>
           }
-          lede={tr('This is how a simple investigation unfolds in an early-years classroom. Choose an object, make a prediction and test it — just as our children will.')}
+          lede={tr('Try a real classroom activity: pick an object, guess what will happen, then test it.')}
         />
         <Reveal variant="scale">
           <FloatOrSink />
@@ -244,7 +254,7 @@ function Approach() {
         </div>
         <Reveal className="s-center">
           <Link to="/our-philosophy" className="s-btn s-btn--outline">
-            {tr('Explore Our Learning Philosophy')}<ArrowRight size={18} aria-hidden="true" />
+            {tr('See How We Teach')}<ArrowRight size={18} aria-hidden="true" />
           </Link>
         </Reveal>
       </div>
@@ -270,9 +280,9 @@ function Values() {
           />
           <Reveal delay={1}>
             <p className="s-lede">
-              {tr('Islamic learning is not a single lesson on the timetable. It is part of how children greet one another, care for their classroom, share, wait, and say thank you — every day.')}</p>
+              {tr('Islam is not just one lesson here. Children live it every day — in how they greet, share, wait and say thank you.')}</p>
             <p className="s-lede">
-              {tr('Children practise gratitude by noticing blessings, kindness by helping classmates, and responsibility by caring for shared materials and plants.')}</p>
+              {tr('Small daily habits build a strong, kind character.')}</p>
           </Reveal>
         </div>
         <ul className="s-values">
@@ -325,48 +335,7 @@ function Gallery() {
             </Reveal>
           ))}
         </ul>
-        <p className="s-center s-muted-note">{tr('Images illustrate our planned activities and do not show enrolled students.')}</p>
-      </div>
-    </section>
-  );
-}
-
-// --- H. Day glimpse -----------------------------------------------------------
-
-function DayGlimpse() {
-  return (
-    <section className="s-section s-section--tint" aria-labelledby="day-title">
-      <div className="s-container">
-        <SectionHead
-          eyebrow={tr('A glimpse into the school day')}
-          title={
-            <span id="day-title">
-              {tr('A Day Full of')}{' '}<Hl>{tr('Wonder')}</Hl>
-            </span>
-          }
-          lede={tr('The actual schedule will vary by age group and programme, but every day follows a rhythm like this.')}
-        />
-        <ol className="s-timeline">
-          {DAY_GLIMPSE.map((d, i) => {
-            const Icon = d.icon;
-            return (
-              <Reveal as="li" key={d.title} delay={i} className="s-timeline__item">
-                <span className="s-timeline__dot" aria-hidden="true">
-                  <Icon size={20} strokeWidth={1.75} />
-                </span>
-                <div>
-                  <h3 className="s-h4">{d.title}</h3>
-                  <p>{d.body}</p>
-                </div>
-              </Reveal>
-            );
-          })}
-        </ol>
-        <Reveal className="s-center">
-          <Link to="/a-day-at-school" className="s-text-link">
-            <ArrowLink>{tr('See a day at school in detail')}</ArrowLink>
-          </Link>
-        </Reveal>
+        <p className="s-center s-muted-note">{tr('Photos show the kinds of activities we plan.')}</p>
       </div>
     </section>
   );
@@ -383,13 +352,13 @@ function Partnership() {
         </Reveal>
         <div>
           <SectionHead
-            eyebrow={tr('Parent partnership')}
+            eyebrow={tr('Working with parents')}
             title={
               <span id="partner-title">
                 {tr('Growing Together,')}{' '}<Hl>{tr('Every Step of the Way.')}</Hl>
               </span>
             }
-            lede={tr('Children thrive when families and educators work together. We aim to keep parents informed, celebrate progress, and build a supportive partnership around each child’s development.')}
+            lede={tr('Children do best when home and school work together. We keep you informed, share progress and celebrate every step.')}
           />
           <ul className="s-principles">
             {CONTACT_PRINCIPLES.map((p, i) => {
@@ -426,15 +395,16 @@ function AdmissionsCta() {
             <h2 id="cta-title" className="s-h2 s-h2--light">
               {tr('Your Child’s Journey of Discovery')}{' '}<Hl>{tr('Starts Here.')}</Hl>
             </h2>
-            <p>
-              {tr('Learn more about our educational approach and explore whether')}{' '}{SCHOOL.name} {tr('is the right fit for your family.')}</p>
+            <p>{tr('Come and see if we are the right fit for your family.')}</p>
             <div className="s-actions">
-              <Link to="/admissions" hash="enquiry" className="s-btn s-btn--light">
-                {tr('Enquire About Admissions')}<ArrowRight size={18} aria-hidden="true" />
-              </Link>
-              <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--outline-light">
+              <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--light">
                 <CalendarCheck size={18} aria-hidden="true" />
-                {tr('Arrange a School Visit')}</Link>
+                {tr('Book a School Visit')}
+              </Link>
+              <Link to="/admissions" hash="enquiry" className="s-btn s-btn--outline-light">
+                {tr('Enquire About Admissions')}
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
             </div>
           </div>
           <div className="s-admit__media">

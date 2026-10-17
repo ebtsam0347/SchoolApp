@@ -4,6 +4,7 @@
 import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router';
 import { useSiteLanguage } from '@/site/hooks';
 import { LanguagePrompt } from '@/site/LanguageChoice';
+import { QuickContact } from '@/site/QuickContact';
 import { SiteFooter } from '@/site/SiteFooter';
 import { SiteHeader } from '@/site/SiteHeader';
 import { SiteTheme } from '@/site/SiteTheme';
@@ -26,6 +27,7 @@ function SiteLayout() {
         <Outlet />
       </main>
       <SiteFooter />
+      <QuickContact />
       <LanguagePrompt />
     </SiteTheme>
   );
