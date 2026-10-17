@@ -31,6 +31,12 @@ export const MIGRATIONS: string[] = [
      updated_at TEXT NOT NULL,
      updated_by TEXT NOT NULL
    )`,
+  // Failed photo-admin sign-ins, for throttling (worker/media.ts).
+  `CREATE TABLE IF NOT EXISTS login_failures (
+     ip TEXT NOT NULL,
+     at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_login_failures_ip ON login_failures (ip, at)`,
 ];
 
 let ready: Promise<void> | null = null;

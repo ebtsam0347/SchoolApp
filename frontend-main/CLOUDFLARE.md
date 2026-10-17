@@ -12,7 +12,7 @@ Cloudflare Tunnel: `cloudflared tunnel --url http://localhost:8080`).
 ## One-time setup
 1. `npx wrangler login`
 2. Set `UPSTREAM_GATEWAY` in `wrangler.jsonc` to the gateway's public URL
-   (or in the dashboard: Worker -> Settings -> Variables and Secrets).
+   (editing it in the dashboard is overwritten by the next deploy, so change `wrangler.jsonc`).
 
 ## Deploy from the CLI
     npm run deploy
@@ -56,6 +56,20 @@ Setup (once): create the KV namespace and the D1 database, put their ids in
     npx wrangler kv namespace create schoolapp-media
     npx wrangler d1 create schoolapp-media
     npm run deploy
+
+### Photo-only sign-in (`/photos`, no backend needed)
+
+`https://<your-site>/photos` has its own sign-in for managing website photos, so it
+works even while the school portal backend is offline. It is protected by one secret,
+the photo password. Set it once in Cloudflare (Workers & Pages → schoolapp → Settings →
+Variables and Secrets → Add → type *Secret*, name `GALLERY_PASSWORD`) or with
+`npx wrangler secret put GALLERY_PASSWORD`. Until it is set, `/photos` shows
+"Photo sign-in is not set up yet".
+
+- Sessions last 8 hours; changing the secret signs everyone out.
+- 5 wrong passwords from one address lock that address out for 10 minutes.
+- Choose a long password (a few random words). Anyone who has it can change the website photos.
+- The portal's `ADMIN` login keeps working for Admin → Website images.
 
 Optional Worker variables: `JWKS_URL` / `JWKS_JSON` (override where the signing key
 comes from), `JWT_ISSUER`, `JWT_AUDIENCE` (extra token checks). Admin sign-in needs

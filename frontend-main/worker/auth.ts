@@ -1,3 +1,5 @@
+import { GALLERY_TOKEN_PREFIX, verifyGalleryToken } from './gallery-token';
+
 // Verifies the backend's access tokens (RS256 JWTs issued by the auth service)
 // so website-image management reuses the existing admin login. Nothing is
 // issued here: the Worker only checks signature, expiry and the ADMIN role.
@@ -16,6 +18,8 @@ export interface AuthEnv {
   JWT_ISSUER?: string;
   /** Optional: reject tokens whose `aud` does not include this value. */
   JWT_AUDIENCE?: string;
+  /** Secret for the standalone photo-admin login (/photos). Unset = that login is disabled. */
+  GALLERY_PASSWORD?: string;
 }
 
 export class HttpError extends Error {
@@ -98,11 +102,21 @@ async function keyFor(kid: string | undefined, env: AuthEnv): Promise<CryptoKey 
   return null;
 }
 
-/** Verifies the bearer token and requires the ADMIN role. */
+/**
+ * Accepts either the backend's ADMIN access token or a photo-admin session
+ * token from POST /media/login, and returns who is acting.
+ */
 export async function requireAdmin(request: Request, env: AuthEnv): Promise<Admin> {
   const header = request.headers.get('Authorization') ?? '';
   const match = /^Bearer\s+(\S+)$/i.exec(header);
   if (!match) throw new HttpError(401, 'unauthenticated', 'Sign in to manage website images.');
+
+  if (match[1].startsWith(GALLERY_TOKEN_PREFIX)) {
+    if (!env.GALLERY_PASSWORD || !(await verifyGalleryToken(match[1], env.GALLERY_PASSWORD))) {
+      throw new HttpError(401, 'invalid_token', 'Your photo session has expired. Sign in again.');
+    }
+    return { username: 'photo-admin', roles: ['ADMIN'] };
+  }
 
   const parts = match[1].split('.');
   if (parts.length !== 3) throw new HttpError(401, 'invalid_token', 'Invalid access token.');

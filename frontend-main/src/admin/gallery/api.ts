@@ -1,10 +1,13 @@
-// Client for the Worker's website-image API (worker/media.ts). Goes through the
-// shared `http` wrapper so the admin's access token, silent refresh and
-// ApiError handling work exactly as for the backend. The paths are absolute
-// (same origin) because VITE_API_BASE points at the backend gateway.
+// Client for the Worker's website-image API (worker/media.ts). Requests go out as
+// the photo-admin when a /photos session exists (photo-session.ts), otherwise
+// through the shared `http` wrapper so the portal admin's access token and silent
+// refresh work as for the backend. Paths are absolute (same origin) because
+// VITE_API_BASE points at the backend gateway.
 
-import { http } from '@/lib/http';
+import { parseProblemDetail } from '@/lib/api-error';
+import { request } from '@/lib/http';
 import type { PhotoSlotDef, SitePage } from '@/site/photo-slots';
+import { clearPhotoSession, readPhotoSession } from './photo-session';
 
 export type MediaImage = {
   id: string;
@@ -62,6 +65,31 @@ export function validateImageFile(file: File): string | null {
 const root = () => `${window.location.origin}/media/admin`;
 const UPLOAD_TIMEOUT_MS = 120_000;
 
+type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+type Opts = { signal?: AbortSignal; timeoutMs?: number };
+
+/** Sends a request as the photo-admin (/photos sign-in) when a session exists, else as the portal admin. */
+async function send<T>(method: Method, url: string, body?: unknown, opts: Opts = {}): Promise<T> {
+  const session = readPhotoSession();
+  if (!session) return request<T>(url, { method, body, ...opts });
+
+  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 30_000);
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${session.token}`,
+      ...(body !== undefined && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body === undefined || body instanceof FormData ? (body as FormData | undefined) : JSON.stringify(body),
+    signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
+  });
+  if (res.status === 401) clearPhotoSession(); // expired or password changed: back to the sign-in form
+  if (!res.ok) throw await parseProblemDetail(res);
+  if (res.status === 204 || !(res.headers.get('content-type') ?? '').includes('json')) return undefined as T;
+  return (await res.json()) as T;
+}
+
 function form(file: File | null, fields: ImageFields = {}): FormData {
   const f = new FormData();
   if (file) f.set('file', file);
@@ -74,28 +102,28 @@ export const mediaApi = {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(filters)) if (v) qs.set(k, v);
     const suffix = qs.size ? `?${qs}` : '';
-    return http.get<{ items: MediaImage[]; total: number }>(`${root()}/images${suffix}`, { signal });
+    return send<{ items: MediaImage[]; total: number }>('GET', `${root()}/images${suffix}`, undefined, { signal });
   },
   upload(file: File, fields: ImageFields) {
-    return http.post<MediaImage>(`${root()}/images`, form(file, fields), { timeoutMs: UPLOAD_TIMEOUT_MS });
+    return send<MediaImage>('POST', `${root()}/images`, form(file, fields), { timeoutMs: UPLOAD_TIMEOUT_MS });
   },
   edit(id: string, patch: Partial<Pick<MediaImage, 'title' | 'caption' | 'description' | 'alt' | 'category' | 'sortOrder'>>) {
-    return http.patch<MediaImage>(`${root()}/images/${id}`, patch);
+    return send<MediaImage>('PATCH', `${root()}/images/${id}`, patch);
   },
   replace(id: string, file: File) {
-    return http.put<MediaImage>(`${root()}/images/${id}/file`, form(file), { timeoutMs: UPLOAD_TIMEOUT_MS });
+    return send<MediaImage>('PUT', `${root()}/images/${id}/file`, form(file), { timeoutMs: UPLOAD_TIMEOUT_MS });
   },
   remove(id: string, force: boolean) {
-    return http.del<void>(`${root()}/images/${id}${force ? '?force=true' : ''}`);
+    return send<void>('DELETE', `${root()}/images/${id}${force ? '?force=true' : ''}`);
   },
   reorder(ids: string[]) {
-    return http.post<void>(`${root()}/images/reorder`, { ids });
+    return send<void>('POST', `${root()}/images/reorder`, { ids });
   },
   slots(signal?: AbortSignal) {
-    return http.get<SlotsResponse>(`${root()}/slots`, { signal });
+    return send<SlotsResponse>('GET', `${root()}/slots`, undefined, { signal });
   },
   assign(slotKey: string, imageId: string | null) {
-    return http.put<SlotsResponse>(`${root()}/slots/${slotKey}`, { imageId });
+    return send<SlotsResponse>('PUT', `${root()}/slots/${slotKey}`, { imageId });
   },
 };
 

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VisitRouteImport } from './routes/visit'
+import { Route as PhotosRouteImport } from './routes/photos'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as SiteRouteImport } from './routes/_site'
@@ -191,6 +192,11 @@ import { Route as AppAdminDevicesDeviceIdReconcileRouteImport } from './routes/_
 const VisitRoute = VisitRouteImport.update({
   id: '/visit',
   path: '/visit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhotosRoute = PhotosRouteImport.update({
+  id: '/photos',
+  path: '/photos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -1119,6 +1125,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/photos': typeof PhotosRoute
   '/visit': typeof VisitRoute
   '/account': typeof AppAccountRouteWithChildren
   '/accounts': typeof AppAccountsRouteWithChildren
@@ -1297,6 +1304,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/photos': typeof PhotosRoute
   '/visit': typeof VisitRoute
   '/assistant': typeof AppAssistantRoute
   '/me': typeof AppMeRoute
@@ -1467,6 +1475,7 @@ export interface FileRoutesById {
   '/_site': typeof SiteRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/photos': typeof PhotosRoute
   '/visit': typeof VisitRoute
   '/_app/account': typeof AppAccountRouteWithChildren
   '/_app/accounts': typeof AppAccountsRouteWithChildren
@@ -1648,6 +1657,7 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/photos'
     | '/visit'
     | '/account'
     | '/accounts'
@@ -1826,6 +1836,7 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/photos'
     | '/visit'
     | '/assistant'
     | '/me'
@@ -1995,6 +2006,7 @@ export interface FileRouteTypes {
     | '/_site'
     | '/change-password'
     | '/login'
+    | '/photos'
     | '/visit'
     | '/_app/account'
     | '/_app/accounts'
@@ -2176,6 +2188,7 @@ export interface RootRouteChildren {
   SiteRoute: typeof SiteRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   LoginRoute: typeof LoginRoute
+  PhotosRoute: typeof PhotosRoute
   VisitRoute: typeof VisitRoute
 }
 
@@ -2186,6 +2199,13 @@ declare module '@tanstack/react-router' {
       path: '/visit'
       fullPath: '/visit'
       preLoaderRoute: typeof VisitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photos': {
+      id: '/photos'
+      path: '/photos'
+      fullPath: '/photos'
+      preLoaderRoute: typeof PhotosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -3942,6 +3962,7 @@ const rootRouteChildren: RootRouteChildren = {
   SiteRoute: SiteRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   LoginRoute: LoginRoute,
+  PhotosRoute: PhotosRoute,
   VisitRoute: VisitRoute,
 }
 export const routeTree = rootRouteImport

@@ -4,7 +4,9 @@
 //   GET  /media/slots                     published image for each photo slot
 //   GET  /media/file/<uuid>.<ext>         image bytes from KV (immutable URLs)
 //
-// Admin (Bearer access token from the existing login, ADMIN role — see auth.ts):
+//   POST /media/login                     { password } -> photo-admin session token (see gallery-token.ts)
+//
+// Admin (Bearer: backend ADMIN access token, or a /media/login session token — see auth.ts):
 //   GET    /media/admin/images            library, ?q= &category= &page= &assigned=
 //   POST   /media/admin/images            upload (multipart: file, title, ...)
 //   PATCH  /media/admin/images/:id        edit title / caption / description / alt / category / order
@@ -21,6 +23,7 @@
 
 import { HttpError, requireAdmin, type Admin, type AuthEnv } from './auth';
 import { sniffImage } from './image-type';
+import { GALLERY_TOKEN_TTL_MS, issueGalleryToken, passwordMatches } from './gallery-token';
 import { ensureSchema } from './schema';
 import { IMAGE_CATEGORIES, PHOTO_SLOT_DEFS, PHOTO_SLOT_KEYS, SITE_PAGES } from '../src/site/photo-slots';
 
@@ -242,6 +245,43 @@ async function publicFile(request: Request, env: MediaEnv, name: string): Promis
   return new Response(request.method === 'HEAD' ? null : value, { headers });
 }
 
+// --- photo-admin login ---------------------------------------------------------
+
+const MAX_FAILURES = 5;
+const FAILURE_WINDOW_MS = 10 * 60_000;
+
+async function login(request: Request, env: MediaEnv): Promise<Response> {
+  if (!env.GALLERY_PASSWORD) {
+    throw new HttpError(503, 'login_not_configured', 'Photo sign-in is not set up yet. Ask the site owner to set the GALLERY_PASSWORD secret.');
+  }
+  if (!env.DB) throw new HttpError(503, 'storage_not_configured', 'Image storage is not set up yet (KV namespace and D1 database bindings).');
+  const db = env.DB;
+  await ensureSchema(db);
+
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const now = Date.now();
+  const recent = await db
+    .prepare('SELECT COUNT(*) AS n FROM login_failures WHERE ip = ? AND at > ?')
+    .bind(ip, now - FAILURE_WINDOW_MS)
+    .first<{ n: number }>();
+  if ((recent?.n ?? 0) >= MAX_FAILURES) {
+    throw new HttpError(429, 'too_many_attempts', 'Too many wrong passwords. Please wait 10 minutes and try again.');
+  }
+
+  const body = await readJson(request);
+  const password = typeof body.password === 'string' ? body.password : '';
+  if (!password || !(await passwordMatches(password, env.GALLERY_PASSWORD))) {
+    await db.batch([
+      db.prepare('DELETE FROM login_failures WHERE at < ?').bind(now - FAILURE_WINDOW_MS),
+      db.prepare('INSERT INTO login_failures (ip, at) VALUES (?, ?)').bind(ip, now),
+    ]);
+    throw new HttpError(401, 'bad_credentials', 'Wrong password.');
+  }
+  await db.prepare('DELETE FROM login_failures WHERE ip = ?').bind(ip).run();
+  const issued = await issueGalleryToken(env.GALLERY_PASSWORD, now);
+  return json({ ...issued, expiresInSeconds: GALLERY_TOKEN_TTL_MS / 1000 });
+}
+
 // --- admin handlers ----------------------------------------------------------
 
 async function listImages(db: D1Database, url: URL): Promise<Response> {
@@ -423,6 +463,8 @@ export async function handleMedia(request: Request, env: MediaEnv): Promise<Resp
     if (path.startsWith('/media/file/') && (method === 'GET' || method === 'HEAD')) {
       return await publicFile(request, env, path.slice('/media/file/'.length));
     }
+
+    if (path === '/media/login' && method === 'POST') return await login(request, env);
 
     if (!path.startsWith('/media/admin/')) return problem(404, 'not_found', 'Not found.');
 
