@@ -1,4 +1,5 @@
-// School-specific details for the public website. This is the one place to
+
+import { tr } from '@/site/i18n';// School-specific details for the public website. This is the one place to
 // edit contact information, social links and admissions status.
 //
 // Rule: only enter details the school has confirmed. Anything left `null`
@@ -6,15 +7,15 @@
 // opening hours, fees or dates.
 
 export const SCHOOL = {
-  name: 'The Spirit of Islam School',
-  shortName: 'Spirit of Islam',
-  tagline: 'Thinking Is Our Curriculum',
-  supportingTagline: 'Rooted in Faith. Growing Through Discovery.',
-  essence: 'Faith in the Heart. Curiosity in the Mind. Purpose in Every Discovery.',
+  name: tr('The Spirit of Islam School'),
+  shortName: tr('Spirit of Islam'),
+  tagline: tr('Thinking Is Our Curriculum'),
+  supportingTagline: tr('Rooted in Faith. Growing Through Discovery.'),
+  essence: tr('Faith in the Heart. Curiosity in the Mind. Purpose in Every Discovery.'),
   mission:
-    'A modern Islamic early-years school where children explore, create and grow in character through meaningful, activity-based learning.',
+    tr('A modern Islamic early-years school where children explore, create and grow in character through meaningful, activity-based learning.'),
   logo: '/icons/school-logo.png',
-  logoAlt: 'The Spirit of Islam School crest',
+  logoAlt: tr('The Spirit of Islam School crest'),
 
   contact: {
     phone: null as string | null,
@@ -48,11 +49,11 @@ export function siteUrl(): string {
 export const ENQUIRY_ENDPOINT = '/forms/enquiry';
 
 export const NAV = [
-  { to: '/home', label: 'Home' },
-  { to: '/our-philosophy', label: 'Our Philosophy' },
-  { to: '/learning-approach', label: 'Learning Approach' },
-  { to: '/programmes', label: 'Our Programmes' },
-  { to: '/a-day-at-school', label: 'A Day at School' },
-  { to: '/admissions', label: 'Admissions' },
-  { to: '/contact', label: 'Contact' },
+  { to: '/home', label: tr('Home') },
+  { to: '/our-philosophy', label: tr('Our Philosophy') },
+  { to: '/learning-approach', label: tr('Learning Approach') },
+  { to: '/programmes', label: tr('Our Programmes') },
+  { to: '/a-day-at-school', label: tr('A Day at School') },
+  { to: '/admissions', label: tr('Admissions') },
+  { to: '/contact', label: tr('Contact') },
 ] as const;

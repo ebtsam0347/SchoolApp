@@ -27,50 +27,51 @@ import {
   Sparkle,
 } from '@/site/ui';
 
+import { tr } from '@/site/i18n';
 export const Route = createFileRoute('/_site/our-philosophy')({
   component: PhilosophyPage,
 });
 
 const BELIEFS = [
-  { title: 'Children are capable', body: 'Young children are thinkers and problem-solvers, not empty vessels waiting to be filled.', icon: Lightbulb },
-  { title: 'Curiosity is a gift', body: 'Every question is a starting point. We protect children’s natural wonder rather than rushing to answers.', icon: Sparkles },
-  { title: 'Play is serious learning', body: 'Purposeful play is how young children test ideas, build language and learn to cooperate.', icon: Compass },
-  { title: 'Relationships come first', body: 'Children learn best when they feel safe, known and loved by the adults around them.', icon: HandHeart },
+  { title: tr('Children are capable'), body: tr('Young children are thinkers and problem-solvers, not empty vessels waiting to be filled.'), icon: Lightbulb },
+  { title: tr('Curiosity is a gift'), body: tr('Every question is a starting point. We protect children’s natural wonder rather than rushing to answers.'), icon: Sparkles },
+  { title: tr('Play is serious learning'), body: tr('Purposeful play is how young children test ideas, build language and learn to cooperate.'), icon: Compass },
+  { title: tr('Relationships come first'), body: tr('Children learn best when they feel safe, known and loved by the adults around them.'), icon: HandHeart },
 ];
 
 const HOPES = [
-  'A love of learning',
-  'Curiosity and wonder',
-  'Confidence to ask questions',
-  'Kindness and empathy',
-  'Honesty and responsibility',
-  'Gratitude to Allah',
-  'Independence',
-  'Resilience when things are hard',
-  'Clear communication',
-  'Creative problem-solving',
-  'Care for the natural world',
-  'Joy in working together',
+  tr('A love of learning'),
+  tr('Curiosity and wonder'),
+  tr('Confidence to ask questions'),
+  tr('Kindness and empathy'),
+  tr('Honesty and responsibility'),
+  tr('Gratitude to Allah'),
+  tr('Independence'),
+  tr('Resilience when things are hard'),
+  tr('Clear communication'),
+  tr('Creative problem-solving'),
+  tr('Care for the natural world'),
+  tr('Joy in working together'),
 ];
 
 function PhilosophyPage() {
   usePageMeta({
-    title: 'Our Philosophy',
+    title: tr('Our Philosophy'),
     path: '/our-philosophy',
     description:
-      'Why The Spirit of Islam School exists: Islamic values and modern early-years education working together so children grow in knowledge, character and curiosity.',
+      tr('Why The Spirit of Islam School exists: Islamic values and modern early-years education working together so children grow in knowledge, character and curiosity.'),
   });
 
   return (
     <>
       <PageHero
-        eyebrow="Our philosophy"
+        eyebrow={tr('Our philosophy')}
         title={
           <>
-            Growing Minds. <Hl>Nurturing Hearts.</Hl>
+            {tr('Growing Minds.')}{' '}<Hl>{tr('Nurturing Hearts.')}</Hl>
           </>
         }
-        lede="We are building a school where faith and curiosity grow side by side — where children learn to think deeply, act kindly and discover the world with wonder."
+        lede={tr('We are building a school where faith and curiosity grow side by side — where children learn to think deeply, act kindly and discover the world with wonder.')}
         photo="wonder"
       />
 
@@ -78,26 +79,24 @@ function PhilosophyPage() {
       <section className="s-section" aria-labelledby="vm-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Why we exist"
-            title={<span id="vm-title">Our Proposed Vision and Mission</span>}
-            lede="As a new school, these statements describe what we are working towards."
+            eyebrow={tr('Why we exist')}
+            title={<span id="vm-title">{tr('Our Proposed Vision and Mission')}</span>}
+            lede={tr('As a new school, these statements describe what we are working towards.')}
           />
           <div className="s-duo">
             <Reveal as="article" className="s-duo__card">
               <span className="s-duo__icon" aria-hidden="true">
                 <Eye size={22} />
               </span>
-              <h3 className="s-h3">Vision</h3>
+              <h3 className="s-h3">{tr('Vision')}</h3>
               <p>
-                A generation of children who love learning, think for themselves and carry Islamic values into
-                everything they do.
-              </p>
+                {tr('A generation of children who love learning, think for themselves and carry Islamic values into everything they do.')}</p>
             </Reveal>
             <Reveal as="article" delay={1} className="s-duo__card s-duo__card--dark">
               <span className="s-duo__icon" aria-hidden="true">
                 <Target size={22} />
               </span>
-              <h3 className="s-h3">Mission</h3>
+              <h3 className="s-h3">{tr('Mission')}</h3>
               <p>{SCHOOL.mission}</p>
             </Reveal>
           </div>
@@ -109,16 +108,16 @@ function PhilosophyPage() {
         <GeometricPattern className="s-section__pattern" size={96} />
         <div className="s-container s-statement">
           <Reveal>
-            <Eyebrow>Our tagline</Eyebrow>
+            <Eyebrow>{tr('Our tagline')}</Eyebrow>
             <h2 id="tioc-title" className="s-display s-display--md">
-              “Thinking <Hl>Is Our Curriculum.</Hl>”
+              {tr('“Thinking')}{' '}<Hl>{tr('Is Our Curriculum.')}</Hl>”
             </h2>
           </Reveal>
           <div className="s-statement__grid">
             {[
-              { t: 'Thinking before telling', b: 'Before giving an answer, teachers ask “What do you notice?” and “What do you think?”' },
-              { t: 'Questions over worksheets', b: 'Children spend their time investigating, building and talking — not filling in pages.' },
-              { t: 'Understanding over memorising', b: 'Knowledge sticks when children have discovered it, explained it and used it.' },
+              { t: tr('Thinking before telling'), b: tr('Before giving an answer, teachers ask “What do you notice?” and “What do you think?”') },
+              { t: tr('Questions over worksheets'), b: tr('Children spend their time investigating, building and talking — not filling in pages.') },
+              { t: tr('Understanding over memorising'), b: tr('Knowledge sticks when children have discovered it, explained it and used it.') },
             ].map((x, i) => (
               <Reveal key={x.t} delay={i} className="s-statement__item">
                 <Sparkle size={16} />
@@ -135,33 +134,25 @@ function PhilosophyPage() {
         <div className="s-container s-split s-split--wide">
           <div>
             <SectionHead
-              eyebrow="Faith and modern education"
+              eyebrow={tr('Faith and modern education')}
               title={
                 <span id="faith-title">
-                  Rooted in Faith. <Hl>Growing Through Discovery.</Hl>
+                  {tr('Rooted in Faith.')}{' '}<Hl>{tr('Growing Through Discovery.')}</Hl>
                 </span>
               }
             />
             <Reveal delay={1}>
               <p className="s-lede">
-                We don’t see Islamic values and modern education as two separate subjects. Wonder at the natural world
-                is a path to recognising Allah’s creation. Honesty, patience and kindness are practised in the
-                block corner as much as in story time.
-              </p>
+                {tr('We don’t see Islamic values and modern education as two separate subjects. Wonder at the natural world is a path to recognising Allah’s creation. Honesty, patience and kindness are practised in the block corner as much as in story time.')}</p>
               <ul className="s-ticks">
                 <li>
-                  <BookHeart size={18} aria-hidden="true" /> Islamic stories, duas and manners woven into daily routines
-                </li>
+                  <BookHeart size={18} aria-hidden="true" /> {tr('Islamic stories, duas and manners woven into daily routines')}</li>
                 <li>
-                  <Sprout size={18} aria-hidden="true" /> Nature and science explored with gratitude and awe
-                </li>
+                  <Sprout size={18} aria-hidden="true" /> {tr('Nature and science explored with gratitude and awe')}</li>
                 <li>
-                  <Users size={18} aria-hidden="true" /> Character built through real relationships, not lectures
-                </li>
+                  <Users size={18} aria-hidden="true" /> {tr('Character built through real relationships, not lectures')}</li>
                 <li>
-                  <MessageCircle size={18} aria-hidden="true" /> Developmentally appropriate methods from early-childhood
-                  research
-                </li>
+                  <MessageCircle size={18} aria-hidden="true" /> {tr('Developmentally appropriate methods from early-childhood research')}</li>
               </ul>
             </Reveal>
           </div>
@@ -175,8 +166,8 @@ function PhilosophyPage() {
       <section className="s-section s-section--tint" aria-labelledby="pillars-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Six learning pillars"
-            title={<span id="pillars-title">What Learning Looks Like Here</span>}
+            eyebrow={tr('Six learning pillars')}
+            title={<span id="pillars-title">{tr('What Learning Looks Like Here')}</span>}
           />
           <PillarsGrid />
         </div>
@@ -186,10 +177,10 @@ function PhilosophyPage() {
       <section className="s-section" aria-labelledby="child-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="How we see childhood"
+            eyebrow={tr('How we see childhood')}
             title={
               <span id="child-title">
-                Childhood Is Not a Waiting Room. <Hl>It Matters Now.</Hl>
+                {tr('Childhood Is Not a Waiting Room.')}{' '}<Hl>{tr('It Matters Now.')}</Hl>
               </span>
             }
             align="center"
@@ -215,9 +206,9 @@ function PhilosophyPage() {
       <section className="s-section s-section--tint" aria-labelledby="hopes-title">
         <div className="s-container s-narrow">
           <SectionHead
-            eyebrow="Our hopes for every child"
-            title={<span id="hopes-title">What We Hope Children Will Develop</span>}
-            lede="We can’t promise outcomes for any child — but these are the qualities everything we do is designed to nurture."
+            eyebrow={tr('Our hopes for every child')}
+            title={<span id="hopes-title">{tr('What We Hope Children Will Develop')}</span>}
+            lede={tr('We can’t promise outcomes for any child — but these are the qualities everything we do is designed to nurture.')}
             align="center"
           />
           <ul className="s-chips">
@@ -233,14 +224,13 @@ function PhilosophyPage() {
       <CtaBand
         title={
           <>
-            See How It Works <Hl>in Practice</Hl>
+            {tr('See How It Works')}{' '}<Hl>{tr('in Practice')}</Hl>
           </>
         }
-        body="Explore the inquiry cycle, learning zones and a classroom investigation you can try yourself."
+        body={tr('Explore the inquiry cycle, learning zones and a classroom investigation you can try yourself.')}
       >
         <Link to="/learning-approach" className="s-btn s-btn--light">
-          Explore Our Learning Approach
-          <ArrowRight size={18} aria-hidden="true" />
+          {tr('Explore Our Learning Approach')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </CtaBand>
     </>

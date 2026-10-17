@@ -7,6 +7,7 @@ import { usePageMeta } from '@/site/hooks';
 import { ContactDetails } from '@/site/ContactDetails';
 import { Hl, PageHero, PhotoSlot, ProvisionalNote, Reveal, SectionHead } from '@/site/ui';
 
+import { tr } from '@/site/i18n';
 type Search = { type?: EnquiryType };
 
 export const Route = createFileRoute('/_site/admissions')({
@@ -16,66 +17,62 @@ export const Route = createFileRoute('/_site/admissions')({
 });
 
 const VISIT = [
-  'A walk through our learning spaces and outdoor areas',
-  'Time to see the materials children will use every day',
-  'A conversation about our approach and your child',
-  'Plenty of time for your questions',
+  tr('A walk through our learning spaces and outdoor areas'),
+  tr('Time to see the materials children will use every day'),
+  tr('A conversation about our approach and your child'),
+  tr('Plenty of time for your questions'),
 ];
 
 const QUESTIONS = [
-  { q: 'How will my child’s day balance play and learning?', a: 'Ask us to walk you through a typical day and how each activity has a learning purpose.' },
-  { q: 'How are Islamic values taught to young children?', a: 'Ask how values are woven into routines, stories and relationships — not just separate lessons.' },
-  { q: 'How will I know how my child is progressing?', a: 'Ask about observations, learning journals and how often we meet with families.' },
-  { q: 'How do you help children settle in?', a: 'Ask about settling-in arrangements and how we support children who find separation difficult.' },
-  { q: 'What does the learning environment look like?', a: 'Ask to see the learning zones, outdoor areas and the materials children use.' },
+  { q: tr('How will my child’s day balance play and learning?'), a: tr('Ask us to walk you through a typical day and how each activity has a learning purpose.') },
+  { q: tr('How are Islamic values taught to young children?'), a: tr('Ask how values are woven into routines, stories and relationships — not just separate lessons.') },
+  { q: tr('How will I know how my child is progressing?'), a: tr('Ask about observations, learning journals and how often we meet with families.') },
+  { q: tr('How do you help children settle in?'), a: tr('Ask about settling-in arrangements and how we support children who find separation difficult.') },
+  { q: tr('What does the learning environment look like?'), a: tr('Ask to see the learning zones, outdoor areas and the materials children use.') },
 ];
 
 function AdmissionsPage() {
   const { type } = Route.useSearch();
   usePageMeta({
-    title: 'Admissions',
+    title: tr('Admissions'),
     path: '/admissions',
     description:
-      'Enquire about admissions or arrange a visit to The Spirit of Islam School, a modern Islamic early-years and kindergarten school.',
+      tr('Enquire about admissions or arrange a visit to The Spirit of Islam School, a modern Islamic early-years and kindergarten school.'),
   });
 
   return (
     <>
       <PageHero
-        eyebrow="Admissions"
+        eyebrow={tr('Admissions')}
         title={
           <>
-            We’d Love to <Hl>Meet Your Family</Hl>
+            {tr('We’d Love to')}{' '}<Hl>{tr('Meet Your Family')}</Hl>
           </>
         }
-        lede="Whether you are just curious or ready to plan ahead, we’re happy to answer your questions and show you our approach."
+        lede={tr('Whether you are just curious or ready to plan ahead, we’re happy to answer your questions and show you our approach.')}
         photo="admissions"
       >
         <Link to="/admissions" hash="enquiry" search={{ type }} className="s-btn s-btn--primary">
-          {SCHOOL.admissionsOpen ? 'Enquire Now' : 'Register Your Interest'}
+          {SCHOOL.admissionsOpen ? tr('Enquire Now') : tr('Register Your Interest')}
         </Link>
         <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--outline">
-          Arrange a Visit
-        </Link>
+          {tr('Arrange a Visit')}</Link>
       </PageHero>
 
       {/* Who for */}
       <section className="s-section" aria-labelledby="who-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Who our programmes are for"
+            eyebrow={tr('Who our programmes are for')}
             title={
               <span id="who-title">
-                Families Who Want <Hl>Faith and Curiosity</Hl> Together
-              </span>
+                {tr('Families Who Want')}{' '}<Hl>{tr('Faith and Curiosity')}</Hl> {tr('Together')}</span>
             }
-            lede="Our proposed programmes are designed for children from around two to six years old, and for families who want a strong Islamic foundation alongside modern, activity-based early education."
+            lede={tr('Our proposed programmes are designed for children from around two to six years old, and for families who want a strong Islamic foundation alongside modern, activity-based early education.')}
           />
           {!SCHOOL.admissionsOpen && (
             <ProvisionalNote>
-              Admissions are not open yet. We are currently welcoming expressions of interest — dates, fees and
-              availability will be shared directly with interested families once confirmed.
-            </ProvisionalNote>
+              {tr('Admissions are not open yet. We are currently welcoming expressions of interest — dates, fees and availability will be shared directly with interested families once confirmed.')}</ProvisionalNote>
           )}
         </div>
       </section>
@@ -83,7 +80,7 @@ function AdmissionsPage() {
       {/* Process */}
       <section className="s-section s-section--tint" aria-labelledby="process-title">
         <div className="s-container">
-          <SectionHead eyebrow="The process" title={<span id="process-title">How Admissions Will Work</span>} />
+          <SectionHead eyebrow={tr('The process')} title={<span id="process-title">{tr('How Admissions Will Work')}</span>} />
           <ol className="s-process">
             {ADMISSIONS_STEPS.map((s, i) => {
               const Icon = s.icon;
@@ -105,10 +102,10 @@ function AdmissionsPage() {
         <div className="s-container s-split">
           <div>
             <SectionHead
-              eyebrow="Visiting the school"
+              eyebrow={tr('Visiting the school')}
               title={
                 <span id="visit-title">
-                  What to Expect <Hl>From a Visit</Hl>
+                  {tr('What to Expect')}{' '}<Hl>{tr('From a Visit')}</Hl>
                 </span>
               }
             />
@@ -125,7 +122,7 @@ function AdmissionsPage() {
             </Reveal>
           </div>
           <div>
-            <h3 className="s-h3">Questions you may wish to ask</h3>
+            <h3 className="s-h3">{tr('Questions you may wish to ask')}</h3>
             <div className="s-faq">
               {QUESTIONS.map((q) => (
                 <details key={q.q} className="s-faq__item">
@@ -146,23 +143,23 @@ function AdmissionsPage() {
         <div className="s-container s-form-layout">
           <div>
             <SectionHead
-              eyebrow={SCHOOL.admissionsOpen ? 'Admissions enquiry' : 'Expression of interest'}
+              eyebrow={SCHOOL.admissionsOpen ? tr('Admissions enquiry') : tr('Expression of interest')}
               title={
                 <span id="enquiry-title">
-                  {SCHOOL.admissionsOpen ? 'Enquire About Admissions' : 'Register Your Interest'}
+                  {SCHOOL.admissionsOpen ? tr('Enquire About Admissions') : tr('Register Your Interest')}
                 </span>
               }
               lede={
                 SCHOOL.admissionsOpen
-                  ? 'Send us a few details and we’ll be in touch.'
-                  : 'This form is an enquiry or expression of interest, not an application. Registering does not reserve a place.'
+                  ? tr('Send us a few details and we’ll be in touch.')
+                  : tr('This form is an enquiry or expression of interest, not an application. Registering does not reserve a place.')
               }
             />
             <ContactDetails />
             <p className="s-privacy-mini">
               <Lock size={16} aria-hidden="true" />
               <span>
-                We only use your details to respond to your enquiry. See our <Link to="/privacy">privacy notice</Link>.
+                {tr('We only use your details to respond to your enquiry. See our')}{' '}<Link to="/privacy">{tr('privacy notice')}</Link>.
               </span>
             </p>
           </div>

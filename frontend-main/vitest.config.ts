@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
-// Unit/integration tests for the Cloudflare Worker (worker/). The SPA has no
-// test runner; these run in plain Node against in-memory D1/R2 fakes.
+// Tests for the Cloudflare Worker (worker/) and the public site's translations
+// (src/site). They run in plain Node; the Worker ones use in-memory D1/KV fakes.
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['worker/**/*.test.ts'],
+    include: ['worker/**/*.test.ts', 'src/site/**/*.test.ts'],
   },
 });

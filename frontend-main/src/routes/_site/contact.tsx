@@ -6,35 +6,36 @@ import { EnquiryForm } from '@/site/EnquiryForm';
 import { usePageMeta } from '@/site/hooks';
 import { CtaBand, Hl, PageHero, SectionHead } from '@/site/ui';
 
+import { tr, trf } from '@/site/i18n';
 export const Route = createFileRoute('/_site/contact')({
   component: ContactPage,
 });
 
 function ContactPage() {
   usePageMeta({
-    title: 'Contact',
+    title: tr('Contact'),
     path: '/contact',
-    description: 'Get in touch with The Spirit of Islam School with a question or to arrange a school visit.',
+    description: tr('Get in touch with The Spirit of Islam School with a question or to arrange a school visit.'),
   });
   const { mapEmbedUrl, address } = SCHOOL.contact;
 
   return (
     <>
       <PageHero
-        eyebrow="Contact"
+        eyebrow={tr('Contact')}
         title={
           <>
-            Let’s <Hl>Talk</Hl>
+            {tr('Let’s')}{' '}<Hl>{tr('Talk')}</Hl>
           </>
         }
-        lede="Have a question about our approach, programmes or admissions? Send us a message and we’ll get back to you."
+        lede={tr('Have a question about our approach, programmes or admissions? Send us a message and we’ll get back to you.')}
         photo="partnership"
       />
 
       <section className="s-section" aria-labelledby="contact-title">
         <div className="s-container s-form-layout">
           <div>
-            <SectionHead eyebrow="Get in touch" title={<span id="contact-title">Contact Details</span>} />
+            <SectionHead eyebrow={tr('Get in touch')} title={<span id="contact-title">{tr('Contact Details')}</span>} />
             <ContactDetails />
             {SCHOOL.social.length > 0 && (
               <ul className="s-social">
@@ -51,14 +52,14 @@ function ContactPage() {
               <iframe
                 className="s-map"
                 src={mapEmbedUrl}
-                title={address ? `Map showing ${address}` : 'School location map'}
+                title={address ? trf('Map showing {address}', { address }) : tr('School location map')}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
             )}
           </div>
           <div className="s-form-card">
-            <h2 className="s-h3">Send us a message</h2>
+            <h2 className="s-h3">{tr('Send us a message')}</h2>
             <EnquiryForm defaultType="general" />
           </div>
         </div>
@@ -67,14 +68,13 @@ function ContactPage() {
       <CtaBand
         title={
           <>
-            Prefer to See Us <Hl>in Person?</Hl>
+            {tr('Prefer to See Us')}{' '}<Hl>{tr('in Person?')}</Hl>
           </>
         }
-        body="Arrange a school visit and experience our approach first-hand."
+        body={tr('Arrange a school visit and experience our approach first-hand.')}
       >
         <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--light">
-          Arrange a School Visit
-          <ArrowRight size={18} aria-hidden="true" />
+          {tr('Arrange a School Visit')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </CtaBand>
     </>

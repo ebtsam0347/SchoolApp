@@ -88,6 +88,12 @@ The public school website lives at `/home`, `/our-philosophy`, `/learning-approa
 `/accessibility` (source: `src/routes/_site/`, `src/site/`). School details such as
 phone, email, address and social links are edited in `src/site/config.ts`.
 
+The public site is available in English and Urdu. On the first visit it asks which
+language to use; the header has a switch to change it later. Every visible string goes
+through `tr()` (`src/site/i18n.ts`) and its Urdu text lives in `src/site/i18n-ur.ts`,
+keyed by the exact English. When you change or add English copy, add the Urdu entry too:
+`npm run test:worker` fails if any string is missing a translation.
+
 The admissions/contact form posts to the Worker route in `worker/enquiry.ts`,
 which validates the submission and forwards it to the school's form service:
 

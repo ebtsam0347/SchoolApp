@@ -21,51 +21,52 @@ import { usePageMeta } from '@/site/hooks';
 import { PlantInvestigation } from '@/site/PlantInvestigation';
 import { CtaBand, Hl, PageHero, PhotoSlot, Reveal, SectionHead } from '@/site/ui';
 
+import { tr } from '@/site/i18n';
 export const Route = createFileRoute('/_site/learning-approach')({
   component: LearningApproachPage,
 });
 
 const CYCLE = [
-  { title: 'Wonder', body: 'Something sparks a question.', icon: Sparkles },
-  { title: 'Predict', body: 'Children share what they think.', icon: HelpCircle },
-  { title: 'Investigate', body: 'Hands-on testing and exploring.', icon: Search },
-  { title: 'Observe', body: 'Looking closely and noticing.', icon: Telescope },
-  { title: 'Reflect', body: 'What happened, and why?', icon: MessagesSquare },
-  { title: 'Share', body: 'Explaining ideas to others.', icon: Share2 },
+  { title: tr('Wonder'), body: tr('Something sparks a question.'), icon: Sparkles },
+  { title: tr('Predict'), body: tr('Children share what they think.'), icon: HelpCircle },
+  { title: tr('Investigate'), body: tr('Hands-on testing and exploring.'), icon: Search },
+  { title: tr('Observe'), body: tr('Looking closely and noticing.'), icon: Telescope },
+  { title: tr('Reflect'), body: tr('What happened, and why?'), icon: MessagesSquare },
+  { title: tr('Share'), body: tr('Explaining ideas to others.'), icon: Share2 },
 ];
 
 const EXAMPLES = [
-  { area: 'Science', title: 'Shadows on the playground', body: 'Children trace their shadows in the morning and again later, then wonder why they moved.', icon: FlaskConical },
-  { area: 'Mathematics', title: 'The class market', body: 'Counting, sorting and simple “buying” with real objects turns numbers into something meaningful.', icon: Calculator },
-  { area: 'Language', title: 'Story builders', body: 'Children retell a favourite story with puppets, then invent a new ending together.', icon: BookOpen },
-  { area: 'Creative', title: 'Design a bird feeder', body: 'Planning, building and testing a feeder for the garden — and watching who visits.', icon: Palette },
+  { area: tr('Science'), title: tr('Shadows on the playground'), body: tr('Children trace their shadows in the morning and again later, then wonder why they moved.'), icon: FlaskConical },
+  { area: tr('Mathematics'), title: tr('The class market'), body: tr('Counting, sorting and simple “buying” with real objects turns numbers into something meaningful.'), icon: Calculator },
+  { area: tr('Language'), title: tr('Story builders'), body: tr('Children retell a favourite story with puppets, then invent a new ending together.'), icon: BookOpen },
+  { area: tr('Creative'), title: tr('Design a bird feeder'), body: tr('Planning, building and testing a feeder for the garden — and watching who visits.'), icon: Palette },
 ];
 
 const TEACHER = [
-  { title: 'Observes', body: 'Watches closely to understand what each child is curious about and ready for.', icon: Camera },
-  { title: 'Listens', body: 'Takes children’s ideas seriously and builds learning around them.', icon: Ear },
-  { title: 'Asks', body: 'Uses open questions — “What do you notice?” “How could we find out?”', icon: HelpCircle },
-  { title: 'Guides', body: 'Introduces new words, skills and materials at the right moment.', icon: Sparkles },
+  { title: tr('Observes'), body: tr('Watches closely to understand what each child is curious about and ready for.'), icon: Camera },
+  { title: tr('Listens'), body: tr('Takes children’s ideas seriously and builds learning around them.'), icon: Ear },
+  { title: tr('Asks'), body: tr('Uses open questions — “What do you notice?” “How could we find out?”'), icon: HelpCircle },
+  { title: tr('Guides'), body: tr('Introduces new words, skills and materials at the right moment.'), icon: Sparkles },
 ];
 
 function LearningApproachPage() {
   usePageMeta({
-    title: 'Learning Approach',
+    title: tr('Learning Approach'),
     path: '/learning-approach',
     description:
-      'How children learn at The Spirit of Islam School: guided discovery, purposeful play, the inquiry cycle, learning zones and gentle, observation-based assessment.',
+      tr('How children learn at The Spirit of Islam School: guided discovery, purposeful play, the inquiry cycle, learning zones and gentle, observation-based assessment.'),
   });
 
   return (
     <>
       <PageHero
-        eyebrow="Learning approach"
+        eyebrow={tr('Learning approach')}
         title={
           <>
-            Less Passive Learning. <Hl>More Meaningful Discovery.</Hl>
+            {tr('Less Passive Learning.')}{' '}<Hl>{tr('More Meaningful Discovery.')}</Hl>
           </>
         }
-        lede="Children learn by doing — investigating, building, talking and reflecting — with teachers who guide rather than lecture."
+        lede={tr('Children learn by doing — investigating, building, talking and reflecting — with teachers who guide rather than lecture.')}
         photo="science"
       />
 
@@ -74,22 +75,18 @@ function LearningApproachPage() {
         <div className="s-container s-split s-split--wide">
           <div>
             <SectionHead
-              eyebrow="Guided discovery & purposeful play"
+              eyebrow={tr('Guided discovery & purposeful play')}
               title={
                 <span id="gd-title">
-                  Play With a <Hl>Purpose</Hl>
+                  {tr('Play With a')}{' '}<Hl>{tr('Purpose')}</Hl>
                 </span>
               }
             />
             <Reveal delay={1}>
               <p className="s-lede">
-                Play is how young children make sense of the world. In our classrooms, play is carefully planned:
-                teachers prepare inviting materials, set gentle challenges and join in to extend thinking.
-              </p>
+                {tr('Play is how young children make sense of the world. In our classrooms, play is carefully planned: teachers prepare inviting materials, set gentle challenges and join in to extend thinking.')}</p>
               <p className="s-lede">
-                Children have real choices, but they are never left to “just play”. Every activity has a learning
-                intention — and room for children’s own ideas to take it somewhere new.
-              </p>
+                {tr('Children have real choices, but they are never left to “just play”. Every activity has a learning intention — and room for children’s own ideas to take it somewhere new.')}</p>
             </Reveal>
           </div>
           <Reveal variant="mask">
@@ -102,13 +99,13 @@ function LearningApproachPage() {
       <section className="s-section s-section--tint" aria-labelledby="cycle-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="The inquiry cycle"
+            eyebrow={tr('The inquiry cycle')}
             title={
               <span id="cycle-title">
-                Every Investigation <Hl>Follows a Rhythm</Hl>
+                {tr('Every Investigation')}{' '}<Hl>{tr('Follows a Rhythm')}</Hl>
               </span>
             }
-            lede="Each answer leads to a new question — so the cycle starts again."
+            lede={tr('Each answer leads to a new question — so the cycle starts again.')}
             align="center"
           />
           <ol className="s-cycle">
@@ -133,8 +130,8 @@ function LearningApproachPage() {
       <section className="s-section" aria-labelledby="ex-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="In practice"
-            title={<span id="ex-title">What It Looks Like Across Learning Areas</span>}
+            eyebrow={tr('In practice')}
+            title={<span id="ex-title">{tr('What It Looks Like Across Learning Areas')}</span>}
           />
           <ul className="s-cards-4">
             {EXAMPLES.map((e, i) => {
@@ -158,13 +155,13 @@ function LearningApproachPage() {
       <section className="s-section s-section--tint" id="investigation" aria-labelledby="inv-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="A classroom investigation"
+            eyebrow={tr('A classroom investigation')}
             title={
               <span id="inv-title">
-                What Do Plants <Hl>Need to Grow?</Hl>
+                {tr('What Do Plants')}{' '}<Hl>{tr('Need to Grow?')}</Hl>
               </span>
             }
-            lede="Follow a real early-years investigation from the first question to the final reflection — then run the experiment yourself."
+            lede={tr('Follow a real early-years investigation from the first question to the final reflection — then run the experiment yourself.')}
           />
           <Reveal variant="scale">
             <PlantInvestigation />
@@ -180,10 +177,10 @@ function LearningApproachPage() {
           </Reveal>
           <div>
             <SectionHead
-              eyebrow="The teacher’s role"
+              eyebrow={tr('The teacher’s role')}
               title={
                 <span id="teacher-title">
-                  A Guide <Hl>Beside the Child</Hl>
+                  {tr('A Guide')}{' '}<Hl>{tr('Beside the Child')}</Hl>
                 </span>
               }
             />
@@ -211,13 +208,13 @@ function LearningApproachPage() {
       <section className="s-section s-section--tint" aria-labelledby="zones-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Classroom learning zones"
+            eyebrow={tr('Classroom learning zones')}
             title={
               <span id="zones-title">
-                A Classroom Designed <Hl>for Discovery</Hl>
+                {tr('A Classroom Designed')}{' '}<Hl>{tr('for Discovery')}</Hl>
               </span>
             }
-            lede="Our planned classrooms are arranged into inviting zones, each with materials children can reach and use independently."
+            lede={tr('Our planned classrooms are arranged into inviting zones, each with materials children can reach and use independently.')}
           />
           <ul className="s-zones">
             {LEARNING_ZONES.map((z, i) => {
@@ -240,19 +237,19 @@ function LearningApproachPage() {
       <section className="s-section" aria-labelledby="assess-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Assessment"
+            eyebrow={tr('Assessment')}
             title={
               <span id="assess-title">
-                Noticing Progress, <Hl>Not Testing Children</Hl>
+                {tr('Noticing Progress,')}{' '}<Hl>{tr('Not Testing Children')}</Hl>
               </span>
             }
-            lede="Young children show what they know through what they do and say. Our assessment is gentle, ongoing and shared with families."
+            lede={tr('Young children show what they know through what they do and say. Our assessment is gentle, ongoing and shared with families.')}
           />
           <ul className="s-cards-3">
             {[
-              { t: 'Observation', b: 'Teachers record what children say and do during everyday activities.', icon: Camera },
-              { t: 'Learning journals', b: 'Photos, drawings and quotes build a picture of each child’s growth over time.', icon: NotebookPen },
-              { t: 'Conversations', b: 'Regular discussions with families about progress, interests and next steps.', icon: ClipboardList },
+              { t: tr('Observation'), b: tr('Teachers record what children say and do during everyday activities.'), icon: Camera },
+              { t: tr('Learning journals'), b: tr('Photos, drawings and quotes build a picture of each child’s growth over time.'), icon: NotebookPen },
+              { t: tr('Conversations'), b: tr('Regular discussions with families about progress, interests and next steps.'), icon: ClipboardList },
             ].map((a, i) => {
               const Icon = a.icon;
               return (
@@ -272,18 +269,16 @@ function LearningApproachPage() {
       <CtaBand
         title={
           <>
-            Questions About Our <Hl>Approach?</Hl>
+            {tr('Questions About Our')}{' '}<Hl>{tr('Approach?')}</Hl>
           </>
         }
-        body="We would love to talk with you about how your child learns best."
+        body={tr('We would love to talk with you about how your child learns best.')}
       >
         <Link to="/admissions" hash="enquiry" className="s-btn s-btn--light">
-          Enquire About Admissions
-          <ArrowRight size={18} aria-hidden="true" />
+          {tr('Enquire About Admissions')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
         <Link to="/programmes" className="s-btn s-btn--outline-light">
-          Explore Our Programmes
-        </Link>
+          {tr('Explore Our Programmes')}</Link>
       </CtaBand>
     </>
   );

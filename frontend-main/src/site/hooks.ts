@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { SCHOOL, siteUrl } from './config';
+import { isUrdu } from './i18n';
 
 // ---------------------------------------------------------------------------
 // Scroll reveal: one shared IntersectionObserver marks elements with
@@ -92,4 +93,21 @@ export function usePageMeta({
       canonical?.remove();
     };
   }, [title, description, path]);
+}
+
+// ---------------------------------------------------------------------------
+// <html lang dir> for the chosen website language (i18n.ts). Restored when the
+// visitor leaves the public site for the staff portal, which is English-only.
+
+export function useSiteLanguage() {
+  useLayoutEffect(() => {
+    const html = document.documentElement;
+    const prev = { lang: html.lang, dir: html.dir };
+    html.lang = isUrdu ? 'ur' : 'en';
+    html.dir = isUrdu ? 'rtl' : 'ltr';
+    return () => {
+      html.lang = prev.lang || 'en';
+      html.dir = prev.dir || 'ltr';
+    };
+  }, []);
 }

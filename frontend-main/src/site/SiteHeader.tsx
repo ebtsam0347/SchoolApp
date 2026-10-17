@@ -2,7 +2,9 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { CalendarCheck, LogIn, Menu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NAV, SCHOOL } from './config';
+import { LanguageSwitch } from './LanguageChoice';
 
+import { tr } from '@/site/i18n';
 /**
  * Transparent over the hero, solid once the page scrolls. `overDark` is set
  * on pages whose hero is deep navy (the home page) so the links start white.
@@ -59,7 +61,7 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
           </span>
         </Link>
 
-        <nav className="s-nav" aria-label="Main">
+        <nav className="s-nav" aria-label={tr('Main')}>
           <ul>
             {NAV.map((item) => (
               <li key={item.to}>
@@ -71,6 +73,8 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
           </ul>
         </nav>
 
+        <LanguageSwitch className="s-header__lang" />
+
         <Link
           to="/admissions"
           search={{ type: 'visit' }}
@@ -78,8 +82,7 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
           className="s-btn s-btn--primary s-btn--sm s-header__cta"
         >
           <CalendarCheck size={16} strokeWidth={2} aria-hidden="true" />
-          Book a School Visit
-        </Link>
+          {tr('Book a School Visit')}</Link>
 
         <button
           ref={toggleRef}
@@ -87,7 +90,7 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
           className="s-burger"
           aria-expanded={open}
           aria-controls="site-mobile-menu"
-          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-label={open ? tr('Close menu') : tr('Open menu')}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -100,7 +103,7 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
         className={`s-mobile ${open ? 'is-open' : ''}`}
         hidden={!open}
       >
-        <nav aria-label="Mobile">
+        <nav aria-label={tr('Mobile')}>
           <ul>
             {NAV.map((item, i) => (
               <li key={item.to} style={{ ['--i' as string]: i }}>
@@ -114,12 +117,10 @@ export function SiteHeader({ overDark }: { overDark: boolean }) {
         <div className="s-mobile__foot">
           <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry" className="s-btn s-btn--primary">
             <CalendarCheck size={18} strokeWidth={2} aria-hidden="true" />
-            Book a School Visit
-          </Link>
+            {tr('Book a School Visit')}</Link>
           <Link to="/login" className="s-mobile__staff">
             <LogIn size={16} strokeWidth={2} aria-hidden="true" />
-            Staff portal
-          </Link>
+            {tr('Staff portal')}</Link>
         </div>
       </div>
     </header>

@@ -3,8 +3,10 @@
 // are exposed to site.css as --s-* custom properties.
 
 import { ConfigProvider } from 'antd';
+import urPK from 'antd/locale/ur_PK';
 import type { CSSProperties, ReactNode } from 'react';
 import { spirit, spiritBrand } from '@/theme/themes/spirit';
+import { isUrdu } from './i18n';
 
 const t = spirit.antd.token ?? {};
 
@@ -42,7 +44,7 @@ const antdTheme = {
 
 export function SiteTheme({ children }: { children: ReactNode }) {
   return (
-    <ConfigProvider theme={antdTheme}>
+    <ConfigProvider theme={antdTheme} direction={isUrdu ? 'rtl' : 'ltr'} locale={isUrdu ? urPK : undefined}>
       <div className="site" style={siteVars}>
         {children}
       </div>

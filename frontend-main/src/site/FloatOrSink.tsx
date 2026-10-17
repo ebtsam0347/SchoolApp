@@ -5,6 +5,7 @@
 import { FlaskConical, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 
+import { tr, trf } from '@/site/i18n';
 type ObjectId = 'leaf' | 'stone' | 'block' | 'duck';
 type Outcome = 'float' | 'sink';
 
@@ -13,36 +14,36 @@ const OBJECTS: Record<
   { label: string; outcome: Outcome; observe: string; discuss: string; discover: string }
 > = {
   leaf: {
-    label: 'Leaf',
+    label: tr('Leaf'),
     outcome: 'float',
-    observe: 'The leaf rests gently on the surface of the water.',
-    discuss: 'What would happen if we folded the leaf into a tiny boat and added a pebble?',
-    discover: 'Light, flat things spread their weight out, so the water can hold them up.',
+    observe: tr('The leaf rests gently on the surface of the water.'),
+    discuss: tr('What would happen if we folded the leaf into a tiny boat and added a pebble?'),
+    discover: tr('Light, flat things spread their weight out, so the water can hold them up.'),
   },
   stone: {
-    label: 'Stone',
+    label: tr('Stone'),
     outcome: 'sink',
-    observe: 'The stone drops straight down to the bottom.',
-    discuss: 'The stone is small — so why did it sink? Can we find a heavy thing that floats?',
-    discover: 'Size is not the whole story. The stone is heavy for its size, so it sinks.',
+    observe: tr('The stone drops straight down to the bottom.'),
+    discuss: tr('The stone is small — so why did it sink? Can we find a heavy thing that floats?'),
+    discover: tr('Size is not the whole story. The stone is heavy for its size, so it sinks.'),
   },
   block: {
-    label: 'Wooden block',
+    label: tr('Wooden block'),
     outcome: 'float',
-    observe: 'The wooden block bobs on top, even though it looks solid.',
-    discuss: 'Would a much bigger wooden block float too? How could we test it?',
-    discover: 'Wood is lighter than the same amount of water, so it floats.',
+    observe: tr('The wooden block bobs on top, even though it looks solid.'),
+    discuss: tr('Would a much bigger wooden block float too? How could we test it?'),
+    discover: tr('Wood is lighter than the same amount of water, so it floats.'),
   },
   duck: {
-    label: 'Plastic duck',
+    label: tr('Plastic duck'),
     outcome: 'float',
-    observe: 'The plastic duck floats and wobbles on the surface.',
-    discuss: 'What do you think would happen if we filled the duck with water?',
-    discover: 'The duck is hollow. The air trapped inside helps it float.',
+    observe: tr('The plastic duck floats and wobbles on the surface.'),
+    discuss: tr('What do you think would happen if we filled the duck with water?'),
+    discover: tr('The duck is hollow. The air trapped inside helps it float.'),
   },
 };
 
-const STEPS = ['Predict', 'Test', 'Observe', 'Discuss', 'Discover'] as const;
+const STEPS = [tr('Predict'), tr('Test'), tr('Observe'), tr('Discuss'), tr('Discover')] as const;
 
 function ObjectArt({ id, size = 56 }: { id: ObjectId; size?: number }) {
   const common = { width: size, height: size, viewBox: '0 0 64 64', 'aria-hidden': true } as const;
@@ -104,7 +105,7 @@ export function FloatOrSink() {
 
   return (
     <div className="s-fos">
-      <ol className="s-fos__steps" aria-label="Investigation steps">
+      <ol className="s-fos__steps" aria-label={tr('Investigation steps')}>
         {STEPS.map((s, i) => (
           <li
             key={s}
@@ -119,10 +120,10 @@ export function FloatOrSink() {
 
       <div className="s-fos__body">
         <div className="s-fos__panel">
-          <p className="s-fos__q">Will it float or sink?</p>
+          <p className="s-fos__q">{tr('Will it float or sink?')}</p>
 
           <fieldset className="s-fos__group">
-            <legend>1. Choose an object</legend>
+            <legend>{tr('1. Choose an object')}</legend>
             <div className="s-fos__objects">
               {(Object.keys(OBJECTS) as ObjectId[]).map((id) => (
                 <button
@@ -140,7 +141,7 @@ export function FloatOrSink() {
           </fieldset>
 
           <fieldset className="s-fos__group" disabled={!selected || tested}>
-            <legend>2. What do you predict?</legend>
+            <legend>{tr('2. What do you predict?')}</legend>
             <div className="s-fos__predict">
               {(['float', 'sink'] as Outcome[]).map((o) => (
                 <button
@@ -150,7 +151,7 @@ export function FloatOrSink() {
                   aria-pressed={prediction === o}
                   onClick={() => setPrediction(o)}
                 >
-                  It will {o}
+                  {tr('It will')}{' '}{tr(o)}
                 </button>
               ))}
             </div>
@@ -164,13 +165,11 @@ export function FloatOrSink() {
               onClick={() => setTested(true)}
             >
               <FlaskConical size={18} aria-hidden="true" />
-              Test it
-            </button>
+              {tr('Test it')}</button>
             {selected && (
               <button type="button" className="s-btn s-btn--ghost" onClick={reset}>
                 <RotateCcw size={16} aria-hidden="true" />
-                Try another
-              </button>
+                {tr('Try another')}</button>
             )}
           </div>
         </div>
@@ -187,7 +186,7 @@ export function FloatOrSink() {
                 <ObjectArt id={selected} size={64} />
               </div>
             )}
-            {!selected && <p className="s-tank__hint">Pick an object to begin</p>}
+            {!selected && <p className="s-tank__hint">{tr('Pick an object to begin')}</p>}
           </div>
 
           <div className="s-fos__result" aria-live="polite">
@@ -195,20 +194,23 @@ export function FloatOrSink() {
               <>
                 <p className={`s-fos__verdict ${correct ? 'is-match' : ''}`}>
                   {correct
-                    ? `You predicted it would ${prediction} — and it did!`
-                    : `A surprise! You predicted ${prediction}, but it ${obj.outcome === 'float' ? 'floated' : 'sank'}. Surprises are where scientists learn the most.`}
+                    ? trf('You predicted it would {prediction} — and it did!', { prediction: tr(prediction ?? '') })
+                    : trf('A surprise! You predicted {prediction}, but it {result}. Surprises are where scientists learn the most.', {
+                        prediction: tr(prediction ?? ''),
+                        result: obj.outcome === 'float' ? tr('floated') : tr('sank'),
+                      })}
                 </p>
                 <dl>
                   <div>
-                    <dt>Observe</dt>
+                    <dt>{tr('Observe')}</dt>
                     <dd>{obj.observe}</dd>
                   </div>
                   <div>
-                    <dt>Discuss</dt>
+                    <dt>{tr('Discuss')}</dt>
                     <dd>{obj.discuss}</dd>
                   </div>
                   <div>
-                    <dt>Discover</dt>
+                    <dt>{tr('Discover')}</dt>
                     <dd>{obj.discover}</dd>
                   </div>
                 </dl>
@@ -216,10 +218,10 @@ export function FloatOrSink() {
             ) : (
               <p className="s-fos__wait">
                 {!selected
-                  ? 'Children start by choosing what to test.'
+                  ? tr('Children start by choosing what to test.')
                   : !prediction
-                    ? `Before testing, children make a prediction. Will the ${obj?.label.toLowerCase()} float or sink?`
-                    : 'Now test the prediction and watch carefully.'}
+                    ? trf('Before testing, children make a prediction. Will the {object} float or sink?', { object: obj?.label.toLowerCase() ?? '' })
+                    : tr('Now test the prediction and watch carefully.')}
               </p>
             )}
           </div>

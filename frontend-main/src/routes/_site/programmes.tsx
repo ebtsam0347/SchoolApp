@@ -5,16 +5,17 @@ import { PROGRAMMES } from '@/site/content';
 import { usePageMeta } from '@/site/hooks';
 import { CtaBand, Hl, PageHero, ProvisionalNote, Reveal, SectionHead } from '@/site/ui';
 
+import { tr } from '@/site/i18n';
 export const Route = createFileRoute('/_site/programmes')({
   component: ProgrammesPage,
 });
 
 function ProgrammesPage() {
   usePageMeta({
-    title: 'Our Programmes',
+    title: tr('Our Programmes'),
     path: '/programmes',
     description:
-      'Proposed early-years, nursery, kindergarten and school-readiness programmes at The Spirit of Islam School, with learning objectives and example activities.',
+      tr('Proposed early-years, nursery, kindergarten and school-readiness programmes at The Spirit of Islam School, with learning objectives and example activities.'),
   });
 
   const [active, setActive] = useState(0);
@@ -37,28 +38,26 @@ function ProgrammesPage() {
   return (
     <>
       <PageHero
-        eyebrow="Our programmes"
+        eyebrow={tr('Our programmes')}
         title={
           <>
-            The Right Experience <Hl>for Every Stage</Hl>
+            {tr('The Right Experience')}{' '}<Hl>{tr('for Every Stage')}</Hl>
           </>
         }
-        lede="Our proposed programmes follow children’s development — from first explorations to confident readiness for formal school."
+        lede={tr('Our proposed programmes follow children’s development — from first explorations to confident readiness for formal school.')}
         photo="classroom"
       />
 
       <section className="s-section" aria-labelledby="prog-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Choose a stage"
-            title={<span id="prog-title">Explore Each Programme</span>}
+            eyebrow={tr('Choose a stage')}
+            title={<span id="prog-title">{tr('Explore Each Programme')}</span>}
           />
           <ProvisionalNote>
-            These programmes are being planned. Age bands, availability and curriculum details are provisional and will
-            be confirmed by the school before admissions open.
-          </ProvisionalNote>
+            {tr('These programmes are being planned. Age bands, availability and curriculum details are provisional and will be confirmed by the school before admissions open.')}</ProvisionalNote>
 
-          <div className="s-tabs" role="tablist" aria-label="Programmes">
+          <div className="s-tabs" role="tablist" aria-label={tr('Programmes')}>
             {PROGRAMMES.map((prog, i) => (
               <button
                 key={prog.id}
@@ -91,15 +90,14 @@ function ProgrammesPage() {
           >
             <div className="s-prog__intro">
               <h3 className="s-h2">{p.name}</h3>
-              <p className="s-prog__age">Proposed age band: {p.ageBand} (to be confirmed)</p>
+              <p className="s-prog__age">{tr('Proposed age band:')}{' '}{p.ageBand} {tr('(to be confirmed)')}</p>
               <p className="s-lede">{p.stage}</p>
             </div>
 
             <div className="s-prog__cols">
               <div className="s-prog__box">
                 <h4 className="s-h4">
-                  <Target size={18} aria-hidden="true" /> Learning objectives
-                </h4>
+                  <Target size={18} aria-hidden="true" /> {tr('Learning objectives')}</h4>
                 <ul className="s-ticks s-ticks--sm">
                   {p.objectives.map((o) => (
                     <li key={o}>
@@ -111,8 +109,7 @@ function ProgrammesPage() {
               </div>
               <div className="s-prog__box s-prog__box--tint">
                 <h4 className="s-h4">
-                  <Puzzle size={18} aria-hidden="true" /> Example activities
-                </h4>
+                  <Puzzle size={18} aria-hidden="true" /> {tr('Example activities')}</h4>
                 <ul className="s-ticks s-ticks--sm">
                   {p.activities.map((a) => (
                     <li key={a}>
@@ -139,18 +136,18 @@ function ProgrammesPage() {
       <section className="s-section s-section--tint" aria-labelledby="common-title">
         <div className="s-container">
           <SectionHead
-            eyebrow="Across every programme"
+            eyebrow={tr('Across every programme')}
             title={
               <span id="common-title">
-                One Philosophy, <Hl>Growing With Your Child</Hl>
+                {tr('One Philosophy,')}{' '}<Hl>{tr('Growing With Your Child')}</Hl>
               </span>
             }
           />
           <ul className="s-cards-3">
             {[
-              { t: 'Activity-based', b: 'Children learn through hands-on investigation, play and creative projects at every stage.' },
-              { t: 'Values-centred', b: 'Islamic values shape routines, relationships and how children treat one another.' },
-              { t: 'Child-paced', b: 'Teachers observe each child closely and adjust challenge to their readiness.' },
+              { t: tr('Activity-based'), b: tr('Children learn through hands-on investigation, play and creative projects at every stage.') },
+              { t: tr('Values-centred'), b: tr('Islamic values shape routines, relationships and how children treat one another.') },
+              { t: tr('Child-paced'), b: tr('Teachers observe each child closely and adjust challenge to their readiness.') },
             ].map((x, i) => (
               <Reveal as="li" key={x.t} delay={i} className="s-card">
                 <h3 className="s-h4">{x.t}</h3>
@@ -164,18 +161,16 @@ function ProgrammesPage() {
       <CtaBand
         title={
           <>
-            Not Sure Which Stage <Hl>Fits?</Hl>
+            {tr('Not Sure Which Stage')}{' '}<Hl>{tr('Fits?')}</Hl>
           </>
         }
-        body="Tell us your child’s age and we’ll help you understand the right programme."
+        body={tr('Tell us your child’s age and we’ll help you understand the right programme.')}
       >
         <Link to="/admissions" hash="enquiry" className="s-btn s-btn--light">
-          Enquire About Admissions
-          <ArrowRight size={18} aria-hidden="true" />
+          {tr('Enquire About Admissions')}<ArrowRight size={18} aria-hidden="true" />
         </Link>
         <Link to="/a-day-at-school" className="s-btn s-btn--outline-light">
-          See a Day at School
-        </Link>
+          {tr('See a Day at School')}</Link>
       </CtaBand>
     </>
   );

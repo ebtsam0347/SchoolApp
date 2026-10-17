@@ -94,7 +94,7 @@
 
 .s-skip {
   position: absolute;
-  left: 12px;
+  inset-inline-start: 12px;
   top: -60px;
   z-index: 100;
   padding: 10px 16px;
@@ -276,7 +276,7 @@ a:focus-visible .s-arrow-link svg {
   border-radius: var(--s-r-md);
   background: var(--s-card);
   border: 1px solid var(--s-border-2);
-  border-left: 3px solid var(--s-gold);
+  border-inline-start: 3px solid var(--s-gold);
   color: var(--s-text-2);
   font-size: 0.95rem;
   max-width: 820px;
@@ -426,7 +426,7 @@ a:focus-visible .s-arrow-link svg {
   gap: 12px;
   text-decoration: none;
   min-width: 0;
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 .s-brand img {
   width: 44px;
@@ -534,6 +534,10 @@ a:focus-visible .s-arrow-link svg {
 .s-header.is-dark .s-nav__link.is-active {
   color: #fff !important;
 }
+.s-header.is-dark .s-lang-switch {
+  color: #fff;
+  border-color: color-mix(in srgb, #fff 45%, transparent);
+}
 .s-header.is-dark .s-burger {
   background: color-mix(in srgb, #fff 10%, transparent);
   border-color: color-mix(in srgb, #fff 25%, transparent);
@@ -614,7 +618,7 @@ a:focus-visible .s-arrow-link svg {
   content: '';
   width: 8px;
   height: 8px;
-  margin-right: 12px;
+  margin-inline-end: 12px;
   background: var(--s-gold);
   transform: rotate(45deg);
 }
@@ -1056,7 +1060,7 @@ a:focus-visible .s-arrow-link svg {
   .s-sequence__item:not(:last-child)::after {
     content: '';
     position: absolute;
-    right: -14px;
+    inset-inline-end: -14px;
     top: 50%;
     width: 12px;
     height: 12px;
@@ -1515,7 +1519,7 @@ a:focus-visible .s-arrow-link svg {
 .s-value__icon {
   position: absolute;
   top: 22px;
-  right: 22px;
+  inset-inline-end: 22px;
   color: var(--s-gold-light);
 }
 .s-value__ar {
@@ -1524,7 +1528,7 @@ a:focus-visible .s-arrow-link svg {
   line-height: 1.5;
   color: #fff;
   margin-bottom: 6px !important;
-  text-align: left;
+  text-align: start;
 }
 .s-value h3 {
   font-size: 1.15rem;
@@ -1638,7 +1642,7 @@ a:focus-visible .s-arrow-link svg {
 .s-timeline::before {
   content: '';
   position: absolute;
-  left: 23px;
+  inset-inline-start: 23px;
   top: 8px;
   bottom: 8px;
   width: 2px;
@@ -1923,7 +1927,7 @@ a:focus-visible .s-arrow-link svg {
   display: grid;
   gap: var(--s-space-5);
   margin-top: var(--s-space-8);
-  text-align: left;
+  text-align: start;
 }
 @media (min-width: 800px) {
   .s-statement__grid {
@@ -2199,7 +2203,7 @@ a:focus-visible .s-arrow-link svg {
   content: '';
   position: absolute;
   top: 3px;
-  left: 3px;
+  inset-inline-start: 3px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -2240,7 +2244,7 @@ a:focus-visible .s-arrow-link svg {
   border: 1.5px solid var(--s-border);
   background: var(--s-card);
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   transition:
     border-color var(--s-fast),
     background-color var(--s-fast),
@@ -2334,7 +2338,7 @@ a:focus-visible .s-arrow-link svg {
   display: inline-block;
   width: 7px;
   height: 7px;
-  margin-right: 10px;
+  margin-inline-end: 10px;
   background: var(--s-gold);
   transform: rotate(45deg) translateY(-2px);
 }
@@ -2355,7 +2359,7 @@ a:focus-visible .s-arrow-link svg {
 .s-daylong::before {
   content: '';
   position: absolute;
-  left: 23px;
+  inset-inline-start: 23px;
   top: 0;
   bottom: 0;
   width: 2px;
@@ -2469,7 +2473,7 @@ a:focus-visible .s-arrow-link svg {
 .s-process__n {
   position: absolute;
   top: 18px;
-  right: 20px;
+  inset-inline-end: 20px;
   font-family: var(--s-font-head);
   font-weight: 800;
   font-size: 2.2rem;
@@ -2962,4 +2966,155 @@ a:focus-visible .s-arrow-link svg {
   .s-page-hero__media {
     display: none;
   }
+}
+
+/* ============================================================
+ * Urdu (right-to-left). <html lang="ur" dir="rtl"> is set by
+ * useSiteLanguage() while the public site is shown.
+ * ============================================================ */
+html[lang='ur'] .site {
+  --s-font-head: 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
+  --s-font-body: 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
+  line-height: 1.9;
+}
+html[lang='ur'] .site :is(h1, h2, h3, h4, .s-display, .s-h1, .s-h2, .s-h3, .s-h4) {
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+html[lang='ur'] .site :is(.s-eyebrow, .s-brand__tag, .s-footer__h, .s-step-num) {
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* Arrows and chevrons point the reading direction. */
+[dir='rtl'] .site :is(.lucide-arrow-right, .lucide-arrow-left, .lucide-chevron-right, .lucide-chevron-left) {
+  transform: scaleX(-1);
+}
+[dir='rtl'] .site a:focus-visible .s-arrow-link svg,
+[dir='rtl'] .site .s-pillar:hover .s-arrow-link svg {
+  transform: translateX(-4px) scaleX(-1);
+}
+[dir='rtl'] .site .s-btn:hover svg:last-child:not(:first-child) {
+  transform: translateX(-3px) scaleX(-1);
+}
+[dir='rtl'] .site .s-nav__link::after {
+  transform-origin: right;
+}
+@media (min-width: 640px) {
+  [dir='rtl'] .site .s-sequence__item:not(:last-child)::after {
+    border-right: 0;
+    border-left: 2px solid var(--s-gold);
+    transform: translateY(-50%) rotate(-45deg);
+  }
+}
+[dir='rtl'] .site .s-switch input:checked + .s-switch__track::after {
+  transform: translateX(-18px);
+}
+/* Phone numbers, emails and Latin brand words keep their own direction. */
+[dir='rtl'] .site :is(a[href^='tel:'], a[href^='mailto:'], input[type='email'], input[type='tel']) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ============================================================
+ * Language choice: first-visit prompt and header switch
+ * ============================================================ */
+.s-lang-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--s-navy) 55%, transparent);
+  backdrop-filter: blur(4px);
+}
+.s-lang-prompt__card {
+  width: min(420px, 100%);
+  padding: 28px 24px 24px;
+  border-radius: var(--s-r-lg);
+  background: var(--s-card);
+  box-shadow: var(--s-shadow-lg, 0 24px 60px rgb(0 0 0 / 0.25));
+  text-align: center;
+}
+.s-lang-prompt__card img {
+  margin-inline: auto;
+}
+.s-lang-prompt__title {
+  margin: 12px 0 2px;
+  font-family: var(--s-font-head);
+  font-size: 1.35rem;
+  color: var(--s-heading);
+}
+.s-lang-prompt__title--ur,
+.s-lang-prompt__note--ur,
+.s-lang-choice--ur {
+  font-family: var(--s-font-ar);
+}
+.s-lang-prompt__title--ur {
+  margin-top: 0;
+  line-height: 1.8;
+}
+.s-lang-prompt__choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 20px 0 14px;
+}
+.s-lang-choice {
+  display: grid;
+  gap: 2px;
+  padding: 14px 10px;
+  border: 1.5px solid var(--s-border);
+  border-radius: var(--s-r-md, 12px);
+  background: var(--s-card);
+  color: var(--s-heading);
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--s-fast) var(--s-ease), background var(--s-fast) var(--s-ease);
+}
+.s-lang-choice small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--s-text-2);
+}
+.s-lang-choice:hover,
+.s-lang-choice:focus-visible {
+  border-color: var(--s-royal);
+  background: var(--s-mist);
+  outline: none;
+}
+.s-lang-choice--ur {
+  font-size: 1.35rem;
+  line-height: 1.6;
+}
+.s-lang-prompt__note,
+.s-lang-prompt__note--ur {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--s-text-2);
+}
+.s-lang-switch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--s-royal);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.s-lang-switch:hover,
+.s-lang-switch:focus-visible {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.s-lang-switch [lang='ur'] {
+  font-family: var(--s-font-ar);
+  line-height: 1.2;
 }

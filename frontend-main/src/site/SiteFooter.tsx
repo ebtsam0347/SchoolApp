@@ -3,6 +3,7 @@ import { Clock, LogIn, Mail, MapPin, Phone } from 'lucide-react';
 import { NAV, SCHOOL } from './config';
 import { GeometricPattern, Sparkle } from './ui';
 
+import { tr } from '@/site/i18n';
 export function SiteFooter() {
   const { contact } = SCHOOL;
   const hasContact = contact.phone || contact.email || contact.address;
@@ -21,8 +22,8 @@ export function SiteFooter() {
             <p className="s-footer__mission">{SCHOOL.mission}</p>
           </div>
 
-          <nav aria-label="Footer">
-            <h2 className="s-footer__h">Explore</h2>
+          <nav aria-label={tr('Footer')}>
+            <h2 className="s-footer__h">{tr('Explore')}</h2>
             <ul>
               {NAV.map((n) => (
                 <li key={n.to}>
@@ -33,29 +34,27 @@ export function SiteFooter() {
           </nav>
 
           <div>
-            <h2 className="s-footer__h">Admissions</h2>
+            <h2 className="s-footer__h">{tr('Admissions')}</h2>
             <ul>
               <li>
                 <Link to="/admissions" hash="enquiry">
-                  Enquire about admissions
-                </Link>
+                  {tr('Enquire about admissions')}</Link>
               </li>
               <li>
                 <Link to="/admissions" search={{ type: 'visit' }} hash="enquiry">
-                  Arrange a school visit
-                </Link>
+                  {tr('Arrange a school visit')}</Link>
               </li>
               <li>
-                <Link to="/privacy">Privacy notice</Link>
+                <Link to="/privacy">{tr('Privacy notice')}</Link>
               </li>
               <li>
-                <Link to="/accessibility">Accessibility</Link>
+                <Link to="/accessibility">{tr('Accessibility')}</Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h2 className="s-footer__h">Contact</h2>
+            <h2 className="s-footer__h">{tr('Contact')}</h2>
             <ul className="s-footer__contact">
               {contact.phone && (
                 <li>
@@ -81,13 +80,13 @@ export function SiteFooter() {
                   <span>{contact.officeHours}</span>
                 </li>
               )}
-              {!hasContact && <li className="s-footer__muted">Contact details will be published soon.</li>}
+              {!hasContact && <li className="s-footer__muted">{tr('Contact details will be published soon.')}</li>}
               <li>
-                <Link to="/contact">Send us a message</Link>
+                <Link to="/contact">{tr('Send us a message')}</Link>
               </li>
             </ul>
             {SCHOOL.social.length > 0 && (
-              <ul className="s-footer__social" aria-label="Social media">
+              <ul className="s-footer__social" aria-label={tr('Social media')}>
                 {SCHOOL.social.map((s) => (
                   <li key={s.href}>
                     <a href={s.href} target="_blank" rel="noopener noreferrer">
@@ -106,8 +105,7 @@ export function SiteFooter() {
           </p>
           <Link to="/login" className="s-footer__staff">
             <LogIn size={14} aria-hidden="true" />
-            Staff portal
-          </Link>
+            {tr('Staff portal')}</Link>
         </div>
       </div>
     </footer>

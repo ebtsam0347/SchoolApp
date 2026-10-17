@@ -1,28 +1,27 @@
 import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { SCHOOL } from './config';
 
+import { tr } from '@/site/i18n';
 /** Verified contact details from config; a clear "to be announced" otherwise. */
 export function ContactDetails() {
   const c = SCHOOL.contact;
   const rows = [
-    c.phone && { icon: Phone, label: 'Phone', value: c.phone, href: `tel:${c.phone.replace(/\s/g, '')}` },
+    c.phone && { icon: Phone, label: tr('Phone'), value: c.phone, href: `tel:${c.phone.replace(/\s/g, '')}` },
     c.whatsapp && {
       icon: MessageCircle,
-      label: 'WhatsApp',
+      label: tr('WhatsApp'),
       value: c.whatsapp,
       href: `https://wa.me/${c.whatsapp.replace(/[^\d]/g, '')}`,
     },
-    c.email && { icon: Mail, label: 'Email', value: c.email, href: `mailto:${c.email}` },
-    c.address && { icon: MapPin, label: 'Address', value: c.address },
-    c.officeHours && { icon: Clock, label: 'Office hours', value: c.officeHours },
+    c.email && { icon: Mail, label: tr('Email'), value: c.email, href: `mailto:${c.email}` },
+    c.address && { icon: MapPin, label: tr('Address'), value: c.address },
+    c.officeHours && { icon: Clock, label: tr('Office hours'), value: c.officeHours },
   ].filter(Boolean) as { icon: typeof Phone; label: string; value: string; href?: string }[];
 
   if (rows.length === 0) {
     return (
       <p className="s-contact-tba">
-        Our phone number, email and address will be published here once confirmed. In the meantime, the form is the
-        best way to reach us.
-      </p>
+        {tr('Our phone number, email and address will be published here once confirmed. In the meantime, the form is the best way to reach us.')}</p>
     );
   }
 
